@@ -1,0 +1,12 @@
+[
+    {"name": "竹", "pos_x": 10, "pos_y": 0, "pos_z": 5, "health": 2, "drop_count": 3, "impulse": 4.0},
+    {"name": "竹", "pos_x": 12, "pos_y": 0, "pos_z": 3, "health": 2, "drop_count": 3, "impulse": 4.0},
+    {"name": "竹", "pos_x": 8, "pos_y": 0, "pos_z": 7, "health": 2, "drop_count": 3, "impulse": 4.0},
+    {"name": "竹", "pos_x": 14, "pos_y": 0, "pos_z": 2, "health": 2, "drop_count": 3, "impulse": 4.0},
+    {"name": "竹", "pos_x": 9, "pos_y": 0, "pos_z": 9, "health": 2, "drop_count": 3, "impulse": 4.0},
+    {"name": "桃树", "pos_x": -5, "pos_y": 0, "pos_z": 8, "health": 4, "drop_count": 5, "impulse": 6.0},
+    {"name": "桃树", "pos_x": -3, "pos_y": 0, "pos_z": 10, "health": 4, "drop_count": 5, "impulse": 6.0},
+    {"name": "松树", "pos_x": -8, "pos_y": 0, "pos_z": -3, "health": 5, "drop_count": 4, "impulse": 7.0},
+    {"name": "松树", "pos_x": -10, "pos_y": 0, "pos_z": -5, "health": 5, "drop_count": 4, "impulse": 7.0},
+    {"name": "松树", "pos_x": -12, "pos_y": 0, "pos_z": -2, "health": 5, "drop_count": 4, "impulse": 7.0}
+]
