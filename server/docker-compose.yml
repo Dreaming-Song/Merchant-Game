@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  game-server:
+    build: .
+    container_name: merchant-server
+    ports:
+      - "8765:8765"
+    environment:
+      - DATABASE_URL=postgresql://merchant:merchant_pass@db:5432/merchant_game
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: merchant-db
+    environment:
+      POSTGRES_USER: merchant
+      POSTGRES_PASSWORD: merchant_pass
+      POSTGRES_DB: merchant_game
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U merchant -d merchant_game"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:

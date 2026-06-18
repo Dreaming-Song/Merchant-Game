@@ -42,19 +42,20 @@
 - [x] 存档系统（save_system.gd: JSON 存档/读档/槽位管理）
 - [x] 多系统存档接口（player/alchemy/pet 均实现 get_save_data / load_save_data）
 
-## Phase 3：联机功能（第4-5个月）
+## Phase 3：联机功能（第4-5个月） ✅ 代码已完成
 ### 目标：2-4人公网联机
 
 **第13-15周 - 联机基础**
-- [ ] Photon PUN 2 插件集成
-- [ ] 房间创建/加入
-- [ ] 实时数据同步
-- [ ] Python FastAPI + WebSocket 后端
+- [x] FastAPI + WebSocket 后端（server/main.py: 房间管理、玩家同步、聊天）
+- [x] Godot WebSocket 客户端（network_manager.gd: 连接/重连、房间CRUD、状态发送）
+- [x] 联机玩家同步体（player_sync.gd: 远程玩家插值渲染、头顶名字）
+- [x] Docker 部署（Dockerfile + docker-compose.yml）
+- [x] 数据库设计（init.sql: 玩家/存档/房间/灵宠收藏）
 
-**第16-18周 - 联机优化**
+**第16-18周 - 联机优化** 📝 待开始
 - [ ] 延迟补偿
 - [ ] 数据校验防作弊
-- [ ] Docker 打包 + 阿里云部署
+- [ ] 阿里云/腾讯云部署
 
 ## Phase 4：玩法完善（第6个月）
 ### 目标：可玩完整版
