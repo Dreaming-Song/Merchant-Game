@@ -300,11 +300,11 @@ func get_movement_speed_mult() -> float:
 
 ## 获取当前装备武器
 func get_equipped_weapon() -> String:
-	return _equipment.get(EquipSlot.keys()[EquipSlot.WEAPON], "")
+	return _equipment.get("weapon", "")  # 🔧 L3: 用小写 key
 
 ## 获取当前装备工具
 func get_equipped_tool() -> String:
-	return _equipment.get(EquipSlot.keys()[EquipSlot.TOOL], "")
+	return _equipment.get("tool", "")  # 🔧 L3: 用小写 key
 
 # ==================== 背包扩容 ====================
 

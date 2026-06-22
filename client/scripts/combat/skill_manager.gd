@@ -244,10 +244,15 @@ signal mp_changed(current: float, max: float)
 signal skill_not_learned(skill_id: String, skill_name: String)
 
 func _ready() -> void:
-	_cultivation = get_tree().get_first_node_in_group("player_cultivation")
-	if not _cultivation:
-		# 尝试从 autoload 拿
+	# 🔧 L6: 从 GameManager 获取修行系统实例，而非 autoload
+	var gm = get_node("/root/GameManager") if has_node("/root/GameManager") else null
+	if gm and gm.cultivation:
+		_cultivation = gm.cultivation
+	else:
 		_cultivation = get_node("/root/CultivationSystem") if has_node("/root/CultivationSystem") else CultivationSystem.new()
+	
+	# 🔧 B5: 初始法力设为50
+	set_mp(50.0, 50.0)
 
 func _process(delta: float) -> void:
 	# 冷却递减

@@ -1,5 +1,7 @@
 extends Node
 ## 大世界资源生成器 — 在地图上随机分布草药、矿石、宝箱、遭遇点
+
+const ResourceNode = preload("res://scripts/entities/resource_node.gd")
 ##
 ## 用法：挂载到 World 节点，依赖 BiomeManager
 ## 玩家靠近时实例化，远离时回收（避免场景爆炸）
@@ -101,22 +103,71 @@ func _spawn_nearby_objects(player_pos: Vector3, player_chunk: Vector2i) -> void:
 			_spawn_object(res_type, Vector3(world_x, 0, world_z), chunk_key)
 
 func _spawn_object(res_type: String, pos: Vector3, chunk_key: String) -> void:
-	var prefab_path = RESOURCE_PREFABS.get(res_type)
-	if not prefab_path:
+	"""生成资源实体 — ResourceNode 自动创建视觉"""
+	# 映射资源类型到 ResourceNode 参数
+	var resource_map = {
+		"herb_spirit_grass": {"id": "herb_spirit_grass", "name": "灵草", "gathers": 3},
+		"herb_jade_flower": {"id": "herb_jade_flower", "name": "玉花", "gathers": 2},
+		"herb_flame_flower": {"id": "herb_flame_flower", "name": "焰花", "gathers": 2},
+		"herb_ice_lotus": {"id": "herb_ice_lotus", "name": "冰莲", "gathers": 1},
+		"herb_toadstool": {"id": "herb_toadstool", "name": "毒菇", "gathers": 2},
+		"herb_ghost_flower": {"id": "herb_ghost_flower", "name": "鬼花", "gathers": 1},
+		"herb_fire_root": {"id": "herb_fire_root", "name": "火根", "gathers": 2},
+		"ore_copper": {"id": "ore_copper", "name": "铜矿", "gathers": 5},
+		"ore_iron": {"id": "ore_iron", "name": "铁矿", "gathers": 4},
+		"ore_silver": {"id": "ore_silver", "name": "银矿", "gathers": 3},
+		"ore_gold": {"id": "ore_gold", "name": "金矿", "gathers": 2},
+		"ore_ancient": {"id": "ore_ancient", "name": "古矿", "gathers": 1},
+		"chest_common": {"id": "chest_common", "name": "普通宝箱", "gathers": -1},
+		"chest_rare": {"id": "chest_rare", "name": "稀有宝箱", "gathers": -1},
+		"chest_epic": {"id": "chest_epic", "name": "史诗宝箱", "gathers": -1},
+		"tree_wood": {"id": "tree_wood", "name": "木材", "gathers": 5},
+		"tree_spirit_wood": {"id": "tree_spirit_wood", "name": "灵木", "gathers": 3},
+	}
+	
+	var res_info = resource_map.get(res_type)
+	if not res_info:
+		# 回退到旧逻辑
+		_spawn_object_legacy(res_type, pos, chunk_key)
 		return
 	
-	# 这里先用 Area3D 占位，实际开发替换为预加载场景
+	# 创建 ResourceNode 实体（视觉自动在 _ready 中生成）
+	var node = ResourceNode.new()
+	node.name = "Spawn_%s_%d" % [res_type.replace("_", ""), randi()]
+	node.global_position = pos
+	
+	# 设置 ResourceNode 属性（视觉自动在 _ready 中由 ResourceVisuals 生成）
+	node.resource_id = res_info.id
+	node.resource_name = res_info.name
+	node.max_gathers = res_info.gathers
+	node.current_gathers = res_info.gathers
+	node.respawn_time = 30.0
+	
+	# 附加元数据
+	node.set_meta("chunk", chunk_key)
+	
+	# 添加碰撞（ResourceNode 需要）
+	var col = CollisionShape3D.new()
+	col.shape = BoxShape3D.new()
+	col.shape.size = Vector3(0.8, 0.8, 0.8)
+	node.add_child(col)
+	
+	add_child(node)
+	_active_spawns.append(node)
+	
+	if not _spawn_grid.has(chunk_key):
+		_spawn_grid[chunk_key] = []
+	_spawn_grid[chunk_key].append(node)
+
+func _spawn_object_legacy(res_type: String, pos: Vector3, chunk_key: String) -> void:
+	"""旧逻辑占位——保留用于没有匹配的资源"""
 	var placeholder = Area3D.new()
 	placeholder.name = "Spawn_%s_%d" % [res_type.replace("_", ""), randi()]
 	placeholder.global_position = pos
-	
-	# 附加元数据
 	placeholder.set_meta("res_type", res_type)
 	placeholder.set_meta("chunk", chunk_key)
-	
 	add_child(placeholder)
 	_active_spawns.append(placeholder)
-	
 	if not _spawn_grid.has(chunk_key):
 		_spawn_grid[chunk_key] = []
 	_spawn_grid[chunk_key].append(placeholder)
@@ -135,6 +186,14 @@ func _despawn_far_objects(player_pos: Vector3) -> void:
 	for obj in to_remove:
 		_active_spawns.erase(obj)
 		obj.queue_free()
+	
+	# 🔧 M1: 清理空 chunk key，允许重新生成
+	var empty_chunks: Array[String] = []
+	for chunk_key in _spawn_grid.keys():
+		if _spawn_grid[chunk_key].is_empty():
+			empty_chunks.append(chunk_key)
+	for chunk_key in empty_chunks:
+		_spawn_grid.erase(chunk_key)
 
 func _get_biome_spawn_pool(player_pos: Vector3) -> Array[String]:
 	if _biome_manager:

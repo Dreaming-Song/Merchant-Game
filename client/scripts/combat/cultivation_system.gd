@@ -160,18 +160,19 @@ func get_specialization_mult() -> float:
 
 # ==================== 属性计算 ====================
 
-## 根据所有流派的等级计算最终属性
+## 根据所有流派的等级计算加成属性（不含基础值）
 func calculate_total_stats() -> Dictionary:
+	# 🔧 L1: 去掉基础值，只返回流派带来的加成（不含基础100HP/50MP）
 	var final_stats = {
-		"max_hp": 100,        # 基础生命
-		"max_mp": 50,         # 基础法力
-		"attack": 8,          # 基础攻击
-		"defense": 5,         # 基础防御
-		"speed": 1.0,
-		"crit_rate": 0.05,
-		"crit_damage": 1.5,
-		"mp_regen": 2.0,
-		"hp_regen": 0.5,
+		"max_hp": 0,
+		"max_mp": 0,
+		"attack": 0,
+		"defense": 0,
+		"speed": 0.0,
+		"crit_rate": 0.0,
+		"crit_damage": 0.0,
+		"mp_regen": 0.0,
+		"hp_regen": 0.0,
 		"heal_bonus": 0.0,
 		"damage_reduction": 0.0,
 		"element_damage_bonus": 0.0,

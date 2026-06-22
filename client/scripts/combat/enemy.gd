@@ -34,6 +34,7 @@ var target_player: Node = null
 var patrol_center: Vector3
 var patrol_target: Vector3
 var attack_cooldown: float = 0.0
+var _hurt_timer: float = 0.0  # 🔧 M2: 受击动画计时器
 
 @onready var player_ref: Node = get_tree().get_first_node_in_group("player")
 @onready var navigation: NavigationAgent3D = $NavigationAgent3D
@@ -68,8 +69,11 @@ func _physics_process(delta: float) -> void:
 		AIState.RETURN:
 			_return_to_patrol(delta)
 		AIState.HURT:
-			# 受伤动画由外部触发
-			pass
+			# 🔧 M2: 受击动画计时，结束后切回追击
+			_hurt_timer -= delta
+			if _hurt_timer <= 0.0:
+				if is_alive:
+					ai_state = AIState.CHASE
 		AIState.DEAD:
 			die()
 
@@ -176,13 +180,13 @@ func take_damage(damage: int, source: String = "player") -> void:
 
 	hp = max(hp - effective_damage, 0)
 	enemy_damaged.emit(name, effective_damage, hp)
+	
+	# 显示伤害数字（通过UIManager）
+	_show_damage_number(effective_damage)
 
-	# 受击反馈
+	# 🔧 M2: 用计时器代替 await，避免物理帧空跑
 	ai_state = AIState.HURT
-	# TODO: 受击动画
-	await get_tree().create_timer(0.3).timeout
-	if ai_state == AIState.HURT:
-		ai_state = AIState.CHASE  # 追击攻击者
+	_hurt_timer = 0.3  # 受击动画持续时间
 
 	if hp <= 0:
 		die()
@@ -210,9 +214,16 @@ func _spawn_drops() -> void:
 		EnemyType.IRON_TORTOISE: [{"item": "龟甲片", "prob": 0.9}],
 	}
 	for drop in drops.get(enemy_type, []):
-		if randf() < drop.prob:
+		if randf() < drop.get("prob", 0.0):
 			# TODO: 生成掉落物实体
-			print("📦 掉落: " + drop.item)
+			print("📦 掉落: " + drop.get("item", "unknown"))
+
+# ===================== 伤害数字显示 =====================
+
+func _show_damage_number(damage: int) -> void:
+	var di = get_node("/root/UIManager/HUD/DamageIndicator") if get_node("/root/UIManager/HUD") else null
+	if di and di.has_method("show_damage"):
+		di.show_damage(global_position, damage)
 
 # ===================== 攻击碰撞检测 =====================
 
@@ -227,7 +238,7 @@ func _on_hitbox_entered(body: Node) -> void:
 func get_save_data() -> Dictionary:
 	return {
 		"enemy_type": enemy_type,
-		"position": global_position,
+		"position": [global_position.x, global_position.y, global_position.z],
 		"hp": hp,
 		"is_alive": is_alive,
 		"ai_state": ai_state,
@@ -235,6 +246,8 @@ func get_save_data() -> Dictionary:
 
 func load_save_data(data: Dictionary) -> void:
 	if data.has("position"):
-		global_position = data.position
+		var pos = data["position"]
+		if pos is Array and pos.size() >= 3:
+			global_position = Vector3(pos[0], pos[1], pos[2])
 	hp = data.get("hp", max_hp)
 	is_alive = data.get("is_alive", true)

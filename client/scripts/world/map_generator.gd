@@ -263,53 +263,98 @@ func generate_chunk(cx: int, cz: int, biome_map: Dictionary) -> Dictionary:
 # ==================== 内部生成方法 ====================
 
 func _generate_biome_map() -> Dictionary:
-	"""使用 Perlin 噪声生成生物群系分布图"""
+	"""使用噪声生成生物群系分布 — 连续平滑过渡"""
 	var biome_map = {}
-	var rng = RandomNumberGenerator.new()
-	rng.seed = world_seed
-	
-	# 简化版：用确定性随机分布群系
 	var chunks_per_side = world_size / chunk_size
+	
+	# 温度 + 湿度 双轴决定生物群系
 	for cx in range(-chunks_per_side, chunks_per_side + 1):
 		for cz in range(-chunks_per_side, chunks_per_side + 1):
-			rng.seed = hash(str(world_seed) + "_biome_" + str(cx) + "_" + str(cz))
-			var b = rng.randi() % Biome.size()
-			biome_map["%d_%d" % [cx, cz]] = b
+			var center_x = cx * chunk_size + chunk_size / 2
+			var center_z = cz * chunk_size + chunk_size / 2
+			
+			# 温度 (0~1): 纬度 + 海拔 + 随机
+			var temp = _noise_2d_norm(center_x, center_z, 0.005)
+			# 湿度 (0~1)
+			var moisture = _noise_2d_norm(center_x, center_z, 0.008)
+			# 海拔
+			var elevation = _noise_2d_norm(center_x, center_z, 0.003)
+			
+			var biome = _biome_from_climate(temp, moisture, elevation)
+			biome_map["%d_%d" % [cx, cz]] = biome
 	
 	return biome_map
+
+func _biome_from_climate(temp: float, moisture: float, elevation: float) -> int:
+	"""根据温湿海拔确定生物群系"""
+	# 高海拔
+	if elevation > 0.75:
+		if temp > 0.6: return Biome.VOLCANO
+		elif temp > 0.3: return Biome.MOUNTAIN
+		else: return Biome.SNOWLAND
+	
+	# 低洼（水）
+	if elevation < 0.2 and moisture > 0.6:
+		return Biome.LAKE if moisture > 0.8 else Biome.SWAMP
+	
+	# 根据温湿
+	if temp > 0.7:  # 热
+		if moisture > 0.6: return Biome.FOREST
+		elif moisture > 0.3: return Biome.PLAINS
+		else: return Biome.DESERT
+	elif temp > 0.4:  # 温
+		if moisture > 0.7: return Biome.FOREST
+		elif moisture > 0.5: return Biome.BAMBOO
+		elif moisture > 0.2: return Biome.PLAINS
+		else: return Biome.RUINS
+	else:  # 冷
+		if moisture > 0.6: return Biome.SNOWLAND
+		elif moisture > 0.3: return Biome.SPIRIT_VEIN
+		else: return Biome.MOUNTAIN
 
 func _get_chunk_biome(cx: int, cz: int, biome_map: Dictionary) -> int:
 	var key = "%d_%d" % [cx, cz]
 	return biome_map.get(key, Biome.PLAINS)
 
 func _generate_height_map(cx: int, cz: int, biome: int, rng: RandomNumberGenerator) -> Array:
-	"""生成该区块的地形高度图"""
+	"""使用噪声生成真实地形高度"""
 	var biome_info = get_biome_data(biome)
 	var height_range = biome_info.height_range
+	var base_height = (height_range[0] + height_range[1]) * 0.5
+	var height_amp = (height_range[1] - height_range[0]) * 0.5
 	var blocks = []
 	
 	var start_x = cx * chunk_size
 	var start_z = cz * chunk_size
 	
+	# 主地形噪声
+	var terrain_scale = 0.02
+	# 细节噪声
+	var detail_scale = 0.05
+	
 	for x in range(chunk_size):
 		var row = []
 		for z in range(chunk_size):
-			# 简化高度生成：Perlin-like 噪声
 			var wx = start_x + x
 			var wz = start_z + z
-			rng.seed = hash(str(world_seed) + "_h_" + str(wx) + "_" + str(wz))
-			var noise = rng.randf()  # 实际应用应使用Perlin
-			var height = height_range[0] + noise * (height_range[1] - height_range[0])
-			height = max(height, -0.5)  # 低于-0.5变成水
 			
-			# 地表方块
-			var surface = biome_info.surface_block
-			var subsurface = biome_info.subsurface_block
+			# 主地形
+			var main_noise = _noise_2d(wx, wz, terrain_scale)
+			# 细节起伏
+			var detail_noise = _noise_2d(wx, wz, detail_scale) * 0.3
+			# 组合
+			var noise_val = main_noise + detail_noise
+			var h = base_height + noise_val * height_amp
+			h = clamp(h, -0.5, 1.0)
+			
+			# 水面检测
+			var is_water = h < 0.0
 			
 			row.append({
-				"height": height,
-				"surface": surface,
-				"subsurface": subsurface,
+				"height": h,
+				"surface": "water" if is_water else biome_info.surface_block,
+				"subsurface": "sand" if is_water else biome_info.subsurface_block,
+				"is_water": is_water,
 			})
 		blocks.append(row)
 	
@@ -403,6 +448,42 @@ func _find_spawn_point(world_data: Dictionary) -> Vector3:
 			var y = _get_height(chunk.blocks, cx, cz) * 10
 			return Vector3(cx, y + 1, cz)
 	return Vector3(0, 1, 0)
+
+# ==================== 程序化噪声生成 ====================
+
+var _noise_cache: Dictionary = {}  # 缓存已计算的位置噪声值
+
+## 获取 2D Perlin-风格噪声值（使用 Godot 内置 FastNoiseLite 或简单实现）
+func _noise_2d(x: float, y: float, scale: float = 0.01) -> float:
+	"""返回 -1~1 的噪声值"""
+	var key = "%s_%.1f_%.1f_%.3f" % [world_seed, x, y, scale]
+	if _noise_cache.has(key):
+		return _noise_cache[key]
+	
+	# 用 hash 模拟 Perlin 效果（多频叠加）
+	var val = 0.0
+	var amp = 1.0
+	var freq = scale
+	var max_val = 0.0
+	for i in range(4):  # 4 层 octaves
+		var h = hash(str(world_seed) + "_n_" + str(int(x * freq)) + "_" + str(int(y * freq)))
+		var n = (h % 20000 - 10000) / 10000.0
+		val += n * amp
+		max_val += amp
+		amp *= 0.5
+		freq *= 2.0
+	
+	val = val / max_val  # 归一化到 -1~1
+	_noise_cache[key] = val
+	return val
+
+## 获取 2D 噪声值（0~1 范围）
+func _noise_2d_norm(x: float, y: float, scale: float = 0.01) -> float:
+	return (_noise_2d(x, y, scale) + 1.0) * 0.5
+
+## 清空噪声缓存（世界切换时调用）
+func clear_noise_cache() -> void:
+	_noise_cache.clear()
 
 # ==================== 区块管理 ====================
 

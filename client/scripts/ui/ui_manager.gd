@@ -17,7 +17,8 @@ class_name UIManager
 @onready var inventory_panel: Control = $InventoryPanel
 @onready var crafting_panel: Control = $CraftingPanel
 @onready var cultivation_panel: Control = $CultivationPanel
-@onready var building_panel: Control = $BuildingPanel
+@onready var building_panel: Control = $BuildingPanel if has_node("BuildingPanel") else _create_building_panel()
+@onready var building_mode: Node = null  # 由 _ready 从 PlayerController 获取引用
 @onready var map_panel: Control = $MapPanel
 @onready var pause_menu: Control = $PauseMenu
 @onready var settings_panel: Control = $SettingsPanel if has_node("SettingsPanel") else _create_settings_panel()
@@ -50,8 +51,34 @@ func _ready() -> void:
 		player_interaction_menu.visible = false
 	if emote_wheel:
 		emote_wheel.visible = false
+	
+	# 获取建造模式引用（由 PlayerController 创建）
+	var player = get_node("/root/GameManager/Player") if has_node("/root/GameManager/Player") else null
+	if player and player.has_node("BuildingMode"):
+		building_mode = player.get_node("BuildingMode")
+	
+	# 创建建造模式 HUD（覆盖层，显示当前方块 + 破坏进度）
+	_create_building_hud()
 
 ## 🔧 动态创建设置面板（无需场景预制体）
+## 创建最小建造面板（降级方案 — MC风格下几乎不用）
+func _create_building_panel() -> Control:
+	var panel = Panel.new()
+	panel.name = "BuildingPanel"
+	panel.visible = false
+	panel.size = Vector2(400, 300)
+	panel.position = Vector2(200, 200)
+	add_child(panel)
+	return panel
+
+## 创建建造模式 HUD 覆盖层
+func _create_building_hud() -> void:
+	var hud = preload("res://scripts/ui/building_hud.gd").new()
+	hud.name = "BuildingHUD"
+	hud.visible = false
+	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(hud)
+
 func _create_settings_panel() -> Control:
 	var panel = preload("res://scripts/ui/settings_panel.gd").new()
 	panel.name = "SettingsPanel"
@@ -73,7 +100,7 @@ func _input(event: InputEvent) -> void:
 	elif Input.is_action_just_pressed("toggle_cultivation"): # C / Back
 		toggle_panel("cultivation")
 	elif Input.is_action_just_pressed("toggle_building"):   # B / Start
-		toggle_panel("building")
+		_handle_building_toggle()
 	elif Input.is_action_just_pressed("toggle_map"):        # M
 		toggle_panel("map")
 	elif Input.is_action_just_pressed("toggle_help"):       # H
@@ -208,6 +235,10 @@ func _close_all() -> void:
 		player_interaction_menu.visible = false
 	if emote_wheel:
 		emote_wheel.visible = false
+
+## 是否有面板打开（供外部查询，如 BuildingMode 退出时决定鼠标模式）
+func is_any_panel_open() -> bool:
+	return not _open_panels.is_empty()
 
 func _hide_all_except(keep: String) -> void:
 	for panel in _open_panels.duplicate():
@@ -356,6 +387,30 @@ func _cultivation_show() -> void:
 			frame.add_child(invest_btn)
 		
 		container.add_child(frame)
+
+## 处理 B 键 — MC 风格建造模式 vs 传统面板
+func _handle_building_toggle() -> void:
+	# 第一优先：使用 BuildingMode（MC风格区块建造）
+	if building_mode and building_mode.has_method("toggle_building_mode"):
+		if building_mode.is_building_mode:
+			# 退出建造模式 → 隐藏预览，恢复输入（内含面板判断）
+			building_mode._exit_building_mode()
+			# 从打开面板列表中移除
+			if "building" in _open_panels:
+				_open_panels.erase("building")
+		else:
+			# 进入建造模式
+			var player = get_node("/root/GameManager/Player") if has_node("/root/GameManager/Player") else null
+			var camera = player.get_node("Camera3D") if player and player.has_node("Camera3D") else null
+			if player and camera:
+				building_mode._enter_building_mode(player, camera)
+				# 隐藏所有 UI 面板
+				_hide_all_except("")
+				_open_panels.append("building")
+		return
+	
+	# 降级：使用传统建筑面板（UI列表式）
+	toggle_panel("building")
 
 func _building_show() -> void:
 	"""刷新建造面板"""

@@ -209,8 +209,12 @@ func add_cultivation_xp(amount: int) -> void:
 		breakthrough_possible.emit(current_realm)
 
 ## 尝试突破境界
-func try_breakthrough(inventory_checker: Callable = func(_item, _count): return true) -> bool:
-	"""inventory_checker(item_id, count) → bool，检查是否有足够材料"""
+func try_breakthrough(
+	inventory_checker: Callable = func(_item, _count): return true,
+	inventory_consumer: Callable = func(_item, _count): pass  # 🔧 B4: 消耗材料回调
+) -> bool:
+	"""inventory_checker(item_id, count) → bool，检查是否有足够材料
+	   inventory_consumer(item_id, count) → void，消耗材料"""
 	if current_realm >= Realm.ASCENSION:
 		return false
 	
@@ -226,6 +230,10 @@ func try_breakthrough(inventory_checker: Callable = func(_item, _count): return 
 		if not inventory_checker.call(req.item, req.count):
 			print("⚠️ 缺少突破材料：%s × %d" % [req.item, req.count])
 			return false
+	
+	# 🔧 B4: 消耗材料
+	for req in data.breakthrough_items:
+		inventory_consumer.call(req.item, req.count)
 	
 	# 突破成功！
 	var old_realm = current_realm

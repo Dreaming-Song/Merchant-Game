@@ -125,7 +125,7 @@ func feed(food_type: int) -> Dictionary:
 	"""喂食灵宠，返回亲密度变化"""
 	var result = { "loyalty_change": 0, "message": "" }
 	if hunger <= 0:
-		result.message = pet_name + "已经饱了"
+		result["message"] = pet_name + "已经饱了"
 		return result
 
 	hunger = max(hunger - 20, 0)
@@ -134,13 +134,13 @@ func feed(food_type: int) -> Dictionary:
 	if is_favorite:
 		loyalty = min(loyalty + 10, 100)
 		exp += 30
-		result.loyalty_change = 10
-		result.message = pet_name + "很喜欢！亲密度+10"
+		result["loyalty_change"] = 10
+		result["message"] = pet_name + "很喜欢！亲密度+10"
 	else:
 		loyalty = min(loyalty + 3, 100)
 		exp += 10
-		result.loyalty_change = 3
-		result.message = pet_name + "吃了一些"
+		result["loyalty_change"] = 3
+		result["message"] = pet_name + "吃了一些"
 
 	# 检查升级
 	_check_level_up()
@@ -166,11 +166,11 @@ func _check_skill_unlock() -> void:
 	]
 
 	for threshold in skill_thresholds:
-		if loyalty >= threshold.loyalty and not (threshold.skill in unlocked_skills):
-			unlocked_skills.append(threshold.skill)
-			skill_unlocked.emit(pet_name, threshold.skill)
+		if loyalty >= threshold["loyalty"] and not (threshold["skill"] in unlocked_skills):
+			unlocked_skills.append(threshold["skill"])
+			skill_unlocked.emit(pet_name, threshold["skill"])
 
-			if threshold.skill == "载人飞行":
+			if threshold["skill"] == "载人飞行":
 				is_mount_mode = true
 
 # ===================== 技能接口 =====================

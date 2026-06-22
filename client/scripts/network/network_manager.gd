@@ -1,183 +1,188 @@
 extends Node
-## 联机网络管理器 - Phase 3
-## Godot WebSocket 客户端，与 FastAPI 后端通信
+## 联机网络管理器 — 支持 ENet 主机直连（MC风格）和 WebSocket 集中式
+##
+## 主机直连（默认）：
+##   1. 房主进入世界后，点击 Host → ENet 服务器启动
+##   2. 其他玩家输入房主 IP:Port → 直接加入
+##   3. 房主退出时自动保存世界并关闭服务器
+
+class_name NetworkManager
 
 signal connected()
-signal disconnected()
-signal room_created(room_id: String)
-signal room_joined(room_id: String)
-signal player_joined(player_id: String)
-signal player_left(player_id: String)
-signal player_state_received(player_id: String, state: Dictionary)
-signal chat_received(player_id: String, message: String)
+signal disconnected(reason: String)
+signal player_joined(player_id: int, player_name: String)
+signal player_left(player_id: int, player_name: String)
+signal player_state_received(player_id: int, state: Dictionary)
+signal chat_received(player_id: int, message: String)
 signal connection_error(message: String)
-signal rooms_list_received(rooms: Array)
 
-# ---------- 配置 ----------
-@export var server_url: String = "ws://localhost:8765/ws"
-@export var http_url: String = "http://localhost:8765"
-@export var reconnect_interval: float = 3.0
+# ==================== 模式 ====================
+enum Mode { NONE, HOST, CLIENT }
 
-# ---------- 状态 ----------
-var player_id: String = ""
-var current_room_id: String = ""
+# ==================== 配置 ====================
+@export var default_port: int = 4242
+@export var max_players: int = 4
+
+# ==================== 状态 ====================
+var mode: int = Mode.NONE
+var player_id: int = 0  # 本机玩家在 ENet 中的 ID
+var player_name: String = "道友"
 var is_connected: bool = false
 
-var _socket: WebSocketPeer = WebSocketPeer.new()
-var _reconnect_timer: float = 0.0
-var _should_reconnect: bool = false
-
 func _ready() -> void:
-	# 生成玩家 ID
-	player_id = _generate_player_id()
+	# 设置高级 API
+	multiplayer.peer_connected.connect(_on_peer_connected)
+	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
+	multiplayer.connected_to_server.connect(_on_connected_to_server)
+	multiplayer.connection_failed.connect(_on_connection_failed)
+	multiplayer.server_disconnected.connect(_on_server_disconnected)
 
-func _process(delta: float) -> void:
-	_socket.poll()
+# ==================== 主机 ====================
 
-	if _socket.get_ready_state() == WebSocketPeer.STATE_OPEN:
-		while _socket.get_available_packet_count() > 0:
-			var raw = _socket.get_packet().get_string_from_utf8()
-			_handle_message(raw)
-	elif _socket.get_ready_state() == WebSocketPeer.STATE_CLOSED:
-		if _should_reconnect and not is_connected:
-			_reconnect_timer += delta
-			if _reconnect_timer >= reconnect_interval:
-				_reconnect_timer = 0.0
-				connect_to_server()
+func host_game(port: int = default_port, max_clients: int = max_players) -> bool:
+	"""创建主机（房主）"""
+	var peer = ENetMultiplayerPeer.new()
+	var err = peer.create_server(port, max_clients)
+	if err != OK:
+		connection_error.emit("创建主机失败: " + str(err))
+		return false
+	
+	multiplayer.multiplayer_peer = peer
+	mode = Mode.HOST
+	player_id = 1  # 服务器默认 ID 为 1
+	is_connected = true
+	
+	print("🏠 主机创建成功 (port=%d, max=%d)" % [port, max_clients])
+	connected.emit()
+	return true
 
-# ===================== 连接管理 =====================
+# ==================== 加入 ====================
 
-func connect_to_server() -> void:
-	"""连接服务端"""
-	var url = server_url + "/" + player_id
-	var err = _socket.connect_to_url(url)
+func join_game(ip: String, port: int = default_port) -> bool:
+	"""加入主机"""
+	var peer = ENetMultiplayerPeer.new()
+	var err = peer.create_client(ip, port)
 	if err != OK:
 		connection_error.emit("连接失败: " + str(err))
-		return
-	_should_reconnect = true
-	print("📡 正在连接服务端...")
+		return false
+	
+	multiplayer.multiplayer_peer = peer
+	mode = Mode.CLIENT
+	
+	print("🔗 正在连接 %s:%d..." % [ip, port])
+	return true
 
-func disconnect_from_server() -> void:
-	"""断开连接"""
-	_should_reconnect = false
-	_socket.close()
+# ==================== 断开 ====================
+
+func leave_game() -> void:
+	"""离开游戏"""
+	if mode == Mode.HOST:
+		print("🏠 主机关闭")
+		# 作为主机，通知所有客户端
+		rpc("_on_server_shutdown")
+	
+	multiplayer.multiplayer_peer = null
+	mode = Mode.NONE
 	is_connected = false
-	current_room_id = ""
-	disconnected.emit()
+	disconnected.emit("主动离开")
 
-func _handle_message(raw: String) -> void:
-	"""处理服务端消息"""
-	var json: JSON = JSON.new()
-	var err = json.parse(raw)
-	if err != OK:
-		return
-	var msg: Dictionary = json.data
-	var msg_type: String = msg.get("type", "")
+# ==================== ENet 回调 ====================
 
-	match msg_type:
-		# 连接状态
-		"connected":
-			is_connected = true
-			connected.emit()
-			print("✅ 已连接服务端")
+func _on_peer_connected(id: int) -> void:
+	if mode == Mode.HOST:
+		player_joined.emit(id, "玩家%d" % id)
+		print("👤 玩家加入: ID=%d" % id)
+		
+		# 向新玩家发送世界信息
+		_send_world_info.rpc_id(id)
 
-		# 房间
-		"room_created":
-			current_room_id = msg.room_id
-			room_created.emit(msg.room_id)
-			print("🏠 房间已创建: " + msg.room_id)
+func _on_peer_disconnected(id: int) -> void:
+	player_left.emit(id, "")
+	print("👋 玩家离开: ID=%d" % id)
+	
+	# 如果主机离开（不应该发生），但客户端检测到
+	if mode == Mode.CLIENT and id == 1:
+		is_connected = false
+		disconnected.emit("主机断开连接")
 
-		"room_joined":
-			current_room_id = msg.room_id
-			room_joined.emit(msg.room_id)
-			print("🚪 已加入房间: " + msg.room_id)
+func _on_connected_to_server() -> void:
+	"""客户端成功连接主机"""
+	mode = Mode.CLIENT
+	player_id = multiplayer.get_unique_id()
+	is_connected = true
+	print("✅ 已连接到主机 (ID=%d)" % player_id)
+	connected.emit()
 
-		"player_joined":
-			player_joined.emit(msg.player_id)
-			print("👤 玩家加入: " + msg.player_id)
+func _on_connection_failed() -> void:
+	connection_error.emit("无法连接到主机")
+	print("❌ 连接失败")
 
-		"player_left":
-			player_left.emit(msg.player_id)
-			print("👋 玩家离开: " + msg.player_id)
+func _on_server_disconnected() -> void:
+	is_connected = false
+	disconnected.emit("主机已关闭")
+	print("🔌 主机断开连接")
 
-		# 同步
-		"player_state":
-			player_state_received.emit(msg.player_id, msg.state)
+# ==================== RPC: 世界同步 ====================
 
-		# 聊天
-		"chat":
-			chat_received.emit(msg.player_id, msg.message)
+@rpc("any_peer", "reliable")
+func _send_world_info() -> void:
+	"""主机向新玩家发送世界信息"""
+	var wm = get_node("/root/WorldManager")
+	if wm:
+		var info = wm.get_world_info(wm.current_world)
+		# 发送世界种子等信息
+		receive_world_info(info)
 
-		# 错误
-		"error":
-			connection_error.emit(msg.get("message", "未知错误"))
+@rpc("any_peer", "reliable")
+func receive_world_info(info: Dictionary) -> void:
+	"""客户端接收世界信息"""
+	print("📦 收到世界信息: " + str(info))
+	# TODO: 根据世界种子加载地图
 
-# ===================== 发送消息 =====================
+# ==================== RPC: 聊天 ====================
 
-func _send(data: Dictionary) -> void:
-	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
-		return
-	_socket.send_text(JSON.stringify(data))
-
-func send_player_state(x: float, y: float, z: float, rot_x: float, rot_y: float,
-	hp: int, mp: int, is_flying: bool, pet_id: String = "") -> void:
-	"""发送玩家位置状态"""
-	_send({
-		"type": "player_update",
-		"x": x, "y": y, "z": z,
-		"rot_x": rot_x, "rot_y": rot_y,
-		"hp": hp, "mp": mp,
-		"is_flying": is_flying
-	})
-
-func create_room(name: String = "新房间", max_players: int = 4) -> void:
-	"""创建房间"""
-	_send({
-		"type": "create_room",
-		"name": name,
-		"max_players": max_players,
-	})
-
-func join_room(room_id: String, password: String = "") -> void:
-	"""加入房间"""
-	_send({
-		"type": "join_room",
-		"room_id": room_id,
-		"password": password,
-	})
-
-func leave_room() -> void:
-	"""离开房间"""
-	_send({"type": "leave_room"})
-	current_room_id = ""
-
+@rpc("any_peer", "unreliable", "call_local")
 func send_chat(message: String) -> void:
 	"""发送聊天消息"""
-	_send({"type": "chat", "message": message})
-
-# ===================== HTTP 接口 =====================
-
-func fetch_rooms_list() -> void:
-	"""HTTP 获取房间列表"""
-	var http = HTTPRequest.new()
-	add_child(http)
-	http.request_completed.connect(_on_rooms_list_received)
-	http.request(http_url + "/api/rooms")
-
-func _on_rooms_list_received(result: int, code: int, headers: Array, body: PackedByteArray) -> void:
-	if code == 200:
-		var json: JSON = JSON.new()
-		json.parse(body.get_string_from_utf8())
-		rooms_list_received.emit(json.data.get("rooms", []))
+	var sender = multiplayer.get_remote_sender_id() if mode == Mode.HOST else 1
+	if mode == Mode.HOST:
+		# 主机转发给所有客户端
+		rpc("receive_chat", sender, message)
 	else:
-		connection_error.emit("获取房间列表失败")
+		# 客户端发送给主机
+		rpc_id(1, "receive_chat", multiplayer.get_unique_id(), message)
+	receive_chat(multiplayer.get_unique_id(), message)
 
-# ===================== 工具 =====================
+@rpc("any_peer", "unreliable")
+func receive_chat(sender_id: int, message: String) -> void:
+	"""接收聊天消息"""
+	chat_received.emit(sender_id, message)
 
-func _generate_player_id() -> String:
-	"""生成唯一玩家 ID"""
-	var chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-	var id = "player_"
-	for i in range(6):
-		id += chars[randi() % chars.length()]
-	return id
+# ==================== RPC: 玩家状态同步 ====================
+
+@rpc("any_peer", "unreliable")
+func sync_player_state(state: Dictionary) -> void:
+	"""同步玩家位置/状态"""
+	var sender = multiplayer.get_remote_sender_id() if mode == Mode.HOST else multiplayer.get_unique_id()
+	
+	if mode == Mode.HOST:
+		# 主机转发给其他客户端（不包括发送者）
+		for pid in multiplayer.get_peers():
+			if pid != sender:
+				rpc_id(pid, "sync_player_state", state)
+	
+	player_state_received.emit(sender, state)
+
+# ==================== 工具 ====================
+
+func get_player_list() -> Array[int]:
+	"""获取当前所有在线玩家ID列表"""
+	var peers = multiplayer.get_peers()
+	var list: Array[int] = []
+	list.append(1)  # 主机
+	for p in peers:
+		list.append(p)
+	return list
+
+func is_host() -> bool:
+	return mode == Mode.HOST

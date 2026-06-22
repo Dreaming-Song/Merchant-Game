@@ -168,6 +168,7 @@ var phase_transition_playing: bool = false
 
 @onready var player_ref: Node = get_tree().get_first_node_in_group("player")
 @onready var hitbox: Area3D = $Hitbox
+var threat_system: ThreatSystem = null
 
 func _ready() -> void:
 	config = get_boss_config(boss_type)
@@ -186,9 +187,28 @@ func _ready() -> void:
 	# 初始通告
 	print("🐉【天地异象】%s（%s）已降临！" % [config.title, config.name])
 	boss_aggro.emit(config.name, "world")
+	
+	# 初始化仇恨系统
+	threat_system = ThreatSystem.new()
+	threat_system.setup(self)
+	add_child(threat_system)
+	
+	# 激活BOSS血条UI（单人/房主自动激活）
+	_bind_boss_hud()
+	
+func _bind_boss_hud() -> void:
+	"""绑定BOSS血条UI"""
+	var ui = get_node("/root/UIManager") if has_node("/root/UIManager") else null
+	if ui and ui.has_node("HUD") and ui.get_node("HUD").has_node("BossHUD"):
+		var boss_hud = ui.get_node("HUD/BossHUD")
+		if boss_hud.has_method("activate"):
+			boss_hud.activate(self)
 
 func _physics_process(delta: float) -> void:
 	if not is_alive or phase_transition_playing:
+		# 但死亡时仍需同步
+		if not is_alive:
+			_sync_state()
 		return
 	
 	_update_player_ref()
@@ -200,10 +220,12 @@ func _physics_process(delta: float) -> void:
 		AIState.CHASE:
 			_chase(delta)
 		AIState.ABILITY:
-			# 技能由 timer 触发，此处等待
 			pass
 		AIState.HURT:
 			pass
+	
+	# 多人状态同步
+	_sync_state()
 
 # ==================== AI 行为 ====================
 
@@ -397,18 +419,27 @@ func _revive_self(hp_ratio: float) -> void:
 
 # ==================== 受伤/阶段转换 ====================
 
-func take_damage(damage: int, source: String = "player") -> void:
+func take_damage(damage: int, source: String = "player", player_id: String = "") -> void:
 	if not is_alive or is_invulnerable:
 		return
 	
-	# 阶段转换中的减伤
-	var effective_damage = damage
 	if phase == Phase.TWO_TRANSITION:
-		effective_damage = int(damage * 0.1)  # 转变期间 90% 减伤
-		return  # 直接无视伤害
+		return
 	
-	hp = max(hp - effective_damage, 0)
-	boss_damaged.emit(config.name, effective_damage, hp, max_hp, phase)
+	hp = max(hp - damage, 0)
+	boss_damaged.emit(config.name, damage, hp, max_hp, phase)
+	
+	# 多人仇恨系统
+	if not player_id.is_empty() and threat_system:
+		threat_system.add_threat(player_id, damage)
+		# 根据仇恨切换目标
+		var top = threat_system.get_top_threat()
+		if top.player_id and not top.player_id.is_empty():
+			var players = get_tree().get_nodes_in_group("player")
+			for p in players:
+				if str(p.get_instance_id()) == top.player_id or p.name == top.player_id:
+					target_player = p
+					break
 	
 	# 受击反馈
 	ai_state = AIState.HURT
@@ -416,11 +447,9 @@ func take_damage(damage: int, source: String = "player") -> void:
 	if ai_state == AIState.HURT:
 		ai_state = AIState.CHASE
 	
-	# 检查阶段转换
 	if phase == Phase.ONE and hp <= max_hp * config.phase2_hp_ratio:
 		_enter_phase_two()
 	
-	# 死亡检查
 	if hp <= 0:
 		_die()
 
@@ -469,12 +498,28 @@ func _spawn_drops() -> void:
 	"""生成掉落物"""
 	for drop in config.drops:
 		var count = 0
-		for _i in range(drop.max_count):
-			if randf() < drop.prob:
+		for _i in range(drop.get("max_count", 1)):
+			if randf() < drop.get("prob", 0.0):
 				count += 1
 		if count > 0:
-			print("📦 掉落：%s × %d" % [drop.item, count])
+			print("📦 掉落：%s × %d" % [drop.get("item", "unknown"), count])
 			# TODO: 实际生成掉落物实体在地面上
+
+# ==================== 多人 RPC 同步 ====================
+
+@rpc("any_peer", "unreliable")
+func sync_boss_state(hp_val: int, phase_val: int, pos_x: float, pos_y: float, pos_z: float, alive: bool) -> void:
+	"""接收BOSS状态同步（客户端）"""
+	hp = hp_val
+	phase = phase_val
+	global_position = Vector3(pos_x, pos_y, pos_z)
+	is_alive = alive
+
+func _sync_state() -> void:
+	"""发送BOSS状态给所有客户端（仅房主调用）"""
+	var net = get_node("/root/NetworkManager") if has_node("/root/NetworkManager") else null
+	if net and net.is_host():
+		rpc("sync_boss_state", hp, phase, global_position.x, global_position.y, global_position.z, is_alive)
 
 # ==================== 碰撞检测 ====================
 
@@ -487,7 +532,7 @@ func _on_hitbox_entered(body: Node) -> void:
 func get_save_data() -> Dictionary:
 	return {
 		"boss_type": boss_type,
-		"position": global_position,
+		"position": [global_position.x, global_position.y, global_position.z],
 		"hp": hp,
 		"max_hp": max_hp,
 		"phase": phase,
@@ -497,7 +542,9 @@ func get_save_data() -> Dictionary:
 func load_save_data(data: Dictionary) -> void:
 	boss_type = data.get("boss_type", boss_type)
 	if data.has("position"):
-		global_position = data.position
+		var pos = data["position"]
+		if pos is Array and pos.size() >= 3:
+			global_position = Vector3(pos[0], pos[1], pos[2])
 	hp = data.get("hp", max_hp)
 	max_hp = data.get("max_hp", max_hp)
 	phase = data.get("phase", Phase.ONE)

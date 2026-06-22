@@ -1,142 +1,210 @@
 extends Node
-## 存档系统 - Phase 2
-## 本地 JSON 存档（模拟 SQLite，后续可对接 Python 后端）
+## 世界存档系统 — 类似 MC/泰拉/饥荒的"世界文件夹"模式
+##
+## 目录结构：
+##   user://worlds/
+##   └── WorldName/
+##       ├── world.json          # 世界元信息（名称、种子、创建时间）
+##       ├── player_data.json    # 玩家数据（物品、修为、境界）
+##       └── world_state.json    # 世界状态（宝箱、建筑、已采集资源）
+##
+## 生命周期：
+##   WorldManager 创建/删除世界
+##   进入世界时 load_world() → GameManager 分发数据
+##   退出世界时 save_world() → 所有数据写回硬盘
 
-signal save_completed(slot_name: String)
-signal load_completed(slot_name: String)
+class_name WorldSaveSystem
 
-# ---------- 存档槽 ----------
-const SAVE_DIR: String = "user://saves/"
-const MAX_SLOTS: int = 5
+signal world_saved(world_name: String)
+signal world_loaded(world_name: String)
 
-# ---------- 引用 ----------
-@onready var player: CharacterBody3D = get_tree().get_first_node_in_group("player")
-@onready var alchemy_system: Node = get_node_or_null("/root/Main/AlchemySystem")
-@onready var pet: Node = get_tree().get_first_node_in_group("pets")
+const WORLDS_DIR: String = "user://worlds/"
 
 func _ready() -> void:
-	DirAccess.make_dir_recursive(SAVE_DIR)
+	DirAccess.make_dir_recursive(WORLDS_DIR)
 
-# ===================== 存档 =====================
+# ==================== 世界管理 ====================
 
-func save_game(slot_index: int) -> bool:
-	"""保存到指定存档槽 (0~4)"""
-	if slot_index < 0 or slot_index >= MAX_SLOTS:
-		return false
-
-	var data: Dictionary = _collect_save_data()
-	var file_path: String = SAVE_DIR + "slot_%d.json" % slot_index
-
-	var file: FileAccess = FileAccess.open(file_path, FileAccess.WRITE)
-	if file == null:
-		push_error("存档写入失败: " + file_path)
-		return false
-
-	file.store_string(JSON.stringify(data, "  "))
-	file.close()
-
-	save_completed.emit("slot_%d" % slot_index)
+func create_world(name: String, seed: int) -> bool:
+	"""创建新世界文件夹"""
+	var dir_path = WORLDS_DIR + name
+	if DirAccess.dir_exists_absolute(dir_path):
+		return false  # 已存在
+	
+	DirAccess.make_dir_recursive(dir_path)
+	
+	# 写入世界元信息
+	var meta = {
+		"name": name,
+		"seed": seed,
+		"created": Time.get_unix_time_from_system(),
+		"last_played": Time.get_unix_time_from_system(),
+		"play_time": 0.0,
+		"version": "0.2.0",
+		"game_mode": "survival",  # survival / creative / hardcore
+		"player_count": 0,
+	}
+	_save_json(dir_path + "/world.json", meta)
+	
+	# 写入空初始数据
+	_save_json(dir_path + "/player_data.json", {
+		"inventory": [],
+		"equipment": {},
+		"realm": {"level": 0, "xp": 0},
+		"cultivation": {"points": 0, "schools": {}},
+		"player_pos": [0, 5, 0],
+		"player_rot": [0, 0, 0],
+		"hp": 100,
+		"mp": 50,
+	})
+	_save_json(dir_path + "/world_state.json", {
+		"buildings": [],
+		"chests": {},
+		"gathered_resources": {},
+		"killed_enemies": {},
+		"game_time": 0.0,
+	})
+	
+	print("🌍 世界已创建: %s (seed=%d)" % [name, seed])
 	return true
 
-func _collect_save_data() -> Dictionary:
-	"""收集所有可存档数据"""
-	var data: Dictionary = {
-		"version": "0.1.0",
-		"timestamp": Time.get_unix_time_from_system(),
-		"player": {},
-		"alchemy": {},
-		"pets": [],
-	}
-
-	# 玩家数据
-	if player and player.has_method("get_current_state"):
-		data.player = player.get_current_state()
-
-	# 炼丹数据
-	if alchemy_system and alchemy_system.has_method("get_save_data"):
-		data.alchemy = alchemy_system.get_save_data()
-
-	# 灵宠数据
-	if pet and pet.has_method("get_save_data"):
-		data.pets.append(pet.get_save_data())
-
-	return data
-
-# ===================== 读档 =====================
-
-func load_game(slot_index: int) -> bool:
-	"""从存档槽读取"""
-	if slot_index < 0 or slot_index >= MAX_SLOTS:
+func delete_world(name: String) -> bool:
+	"""删除世界文件夹"""
+	var dir_path = WORLDS_DIR + name
+	if not DirAccess.dir_exists_absolute(dir_path):
 		return false
-
-	var file_path: String = SAVE_DIR + "slot_%d.json" % slot_index
-	if not FileAccess.file_exists(file_path):
-		push_warning("存档不存在: " + file_path)
-		return false
-
-	var file: FileAccess = FileAccess.open(file_path, FileAccess.READ)
-	if file == null:
-		return false
-
-	var text: String = file.get_as_text()
-	file.close()
-
-	var json: JSON = JSON.new()
-	var parse_result: Error = json.parse(text)
-	if parse_result != OK:
-		push_error("存档解析失败")
-		return false
-
-	_apply_save_data(json.data)
-	load_completed.emit("slot_%d" % slot_index)
+	os_shell_delete(dir_path)
+	print("🗑️ 世界已删除: " + name)
 	return true
 
-func _apply_save_data(data: Dictionary) -> void:
-	"""应用存档数据"""
-	if data.has("player") and player and player.has_method("set_state"):
-		player.set_state(data.player)
+func os_shell_delete(path: String) -> void:
+	"""递归删除文件夹"""
+	var dir = DirAccess.open(path)
+	if dir:
+		dir.list_dir_begin()
+		var file_name = dir.get_next()
+		while file_name != "":
+			if file_name == "." or file_name == "..":
+				file_name = dir.get_next()
+				continue
+			var full_path = path + "/" + file_name
+			if dir.current_is_dir():
+				os_shell_delete(full_path)
+			else:
+				DirAccess.remove_absolute(full_path)
+			file_name = dir.get_next()
+		dir.list_dir_end()
+	DirAccess.remove_absolute(path)
 
-	if data.has("alchemy") and alchemy_system and alchemy_system.has_method("load_save_data"):
-		alchemy_system.load_save_data(data.alchemy)
+func rename_world(old_name: String, new_name: String) -> bool:
+	"""重命名世界"""
+	var old_path = WORLDS_DIR + old_name
+	var new_path = WORLDS_DIR + new_name
+	if not DirAccess.dir_exists_absolute(old_path) or DirAccess.dir_exists_absolute(new_path):
+		return false
+	return DirAccess.rename_absolute(old_path, new_path) == OK
 
-	if data.has("pets") and pet and pet.has_method("load_save_data"):
-		pet.load_save_data(data.pets[0])
+# ==================== 世界列表 ====================
 
-# ===================== 存档管理 =====================
+func list_worlds() -> Array[Dictionary]:
+	"""列出所有世界"""
+	var result: Array[Dictionary] = []
+	var dir = DirAccess.open(WORLDS_DIR)
+	if not dir:
+		return result
+	
+	dir.list_dir_begin()
+	var name = dir.get_next()
+	while name != "":
+		if name == "." or name == "..":
+			name = dir.get_next()
+			continue
+		if dir.current_is_dir():
+			var meta = _load_json(WORLDS_DIR + name + "/world.json")
+			if not meta.is_empty():
+				result.append({
+					"name": meta.get("name", name),
+					"seed": meta.get("seed", 0),
+					"created": meta.get("created", 0),
+					"last_played": meta.get("last_played", 0),
+					"play_time": meta.get("play_time", 0.0),
+					"version": meta.get("version", "未知"),
+					"game_mode": meta.get("game_mode", "survival"),
+				})
+		name = dir.get_next()
+	dir.list_dir_end()
+	
+	# 按最后游玩时间排序（最新的在前）
+	result.sort_custom(func(a, b): return a.last_played > b.last_played)
+	return result
 
-func get_slot_info(slot_index: int) -> Dictionary:
-	"""读取某个存档槽的摘要信息"""
-	var file_path: String = SAVE_DIR + "slot_%d.json" % slot_index
-	if not FileAccess.file_exists(file_path):
-		return { "exists": false }
+func get_world_info(name: String) -> Dictionary:
+	"""获取单个世界的信息"""
+	return _load_json(WORLDS_DIR + name + "/world.json")
 
-	var file: FileAccess = FileAccess.open(file_path, FileAccess.READ)
-	var text: String = file.get_as_text()
-	file.close()
+# ==================== 读写世界数据 ====================
 
-	var json: JSON = JSON.new()
-	json.parse(text)
+func save_world(name: String, player_data: Dictionary, world_state: Dictionary) -> bool:
+	"""保存世界"""
+	var dir_path = WORLDS_DIR + name
+	if not DirAccess.dir_exists_absolute(dir_path):
+		return false
+	
+	# 更新元信息
+	var meta = _load_json(dir_path + "/world.json")
+	meta["last_played"] = Time.get_unix_time_from_system()
+	meta["play_time"] = meta.get("play_time", 0.0) + player_data.get("_delta_time", 0.0)
+	meta["player_count"] = player_data.get("_player_count", 1)
+	_save_json(dir_path + "/world.json", meta)
+	
+	# 玩家数据（去掉临时字段）
+	var clean_player = player_data.duplicate()
+	clean_player.erase("_delta_time")
+	clean_player.erase("_player_count")
+	_save_json(dir_path + "/player_data.json", clean_player)
+	
+	# 世界状态
+	_save_json(dir_path + "/world_state.json", world_state)
+	
+	world_saved.emit(name)
+	print("💾 世界已保存: " + name)
+	return true
 
-	return {
-		"exists": true,
-		"timestamp": json.data.get("timestamp", 0),
-		"version": json.data.get("version", ""),
-		"player_name": json.data.get("player", {}).get("name", "无名侠客"),
-		"level": json.data.get("player", {}).get("level", 1),
-		"play_time": json.data.get("player", {}).get("play_time", 0),
+func load_world(name: String) -> Dictionary:
+	"""加载世界"""
+	var dir_path = WORLDS_DIR + name
+	if not DirAccess.dir_exists_absolute(dir_path):
+		return {}
+	
+	var result = {
+		"meta": _load_json(dir_path + "/world.json"),
+		"player_data": _load_json(dir_path + "/player_data.json"),
+		"world_state": _load_json(dir_path + "/world_state.json"),
 	}
+	
+	world_loaded.emit(name)
+	print("📂 世界已加载: " + name)
+	return result
 
-func delete_slot(slot_index: int) -> bool:
-	"""删除存档"""
-	var file_path: String = SAVE_DIR + "slot_%d.json" % slot_index
-	if FileAccess.file_exists(file_path):
-		DirAccess.remove_absolute(file_path)
-		return true
-	return false
+# ==================== 工具 ====================
 
-func get_save_list() -> Array:
-	"""获取所有存档槽状态"""
-	var list: Array = []
-	for i in range(MAX_SLOTS):
-		list.append(get_slot_info(i))
-	return list
+func _save_json(path: String, data: Dictionary) -> void:
+	var file = FileAccess.open(path, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(data, "\t"))
+		file.close()
+
+func _load_json(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var file = FileAccess.open(path, FileAccess.READ)
+	if not file:
+		return {}
+	var text = file.get_as_text()
+	file.close()
+	var json = JSON.new()
+	var err = json.parse(text)
+	if err != OK:
+		push_error("JSON解析失败: " + path)
+		return {}
+	return json.data
