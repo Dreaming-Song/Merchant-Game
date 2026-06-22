@@ -90,6 +90,13 @@ func _on_area_entered(area: Area3D) -> void:
 	if parent and parent.is_in_group("player"):
 		interacted.emit(self)
 
+func get_leader_id() -> String:
+	"""获取此远程玩家的领队ID（供 HandHoldManager 链式遍历）"""
+	return ""
+
+func get_display_name() -> String:
+	return display_name
+
 func get_interaction_info() -> Dictionary:
 	return {
 		"id": remote_player_id,

@@ -32,16 +32,21 @@ func show_for_player(player_id: String, screen_pos: Vector2) -> void:
 	"""在屏幕位置显示交互菜单"""
 	_target_player_id = player_id
 	
-	# 动态更新牵手选项：如果已牵手则显示松开
+	# 动态更新牵手选项
 	var hhm = get_node("/root/HandHoldManager") if has_node("/root/HandHoldManager") else null
-	if hhm and hhm.is_holding() and hhm.partner_id == player_id:
+	var is_linked = false
+	if hhm:
+		is_linked = (hhm.my_leader_id == player_id) or hhm.my_follower_ids.has(player_id)
+	
+	if is_linked:
 		set_item_text(0, "🔗 松开手")
 		set_item_disabled(0, false)
-		set_item_text(1, "👋 切换为领队")  # 选项2 变成切换
+		set_item_text(1, "👋 重新牵手")
+		set_item_disabled(1, false)
 	else:
 		set_item_text(0, "🤝 牵手同行")
 		set_item_disabled(0, false)
-		set_item_text(1, "🔗 松开手")  # 没牵手时禁用
+		set_item_text(1, "🔗 松开手")
 		set_item_disabled(1, true)
 	
 	position = screen_pos

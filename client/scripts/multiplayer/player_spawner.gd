@@ -236,24 +236,33 @@ func _handle_handhold(target_id: String, remote_node: Node) -> void:
 	"""处理牵手请求"""
 	var hhm = get_node("/root/HandHoldManager") if has_node("/root/HandHoldManager") else null
 	if not hhm:
-		print("⚠️ HandHoldManager 未加载")
-		return
-	
-	# 如果已经和这个玩家牵手了，改为松开
-	if hhm.is_holding() and hhm.partner_id == target_id:
-		hhm.release_hold("通过菜单松开")
 		return
 	
 	# 获取对方名字
 	var target_name = remote_node.get("display_name", "道友") if remote_node else "道友"
+	
+	# 如果已经牵着这个玩家 → 松开
+	if hhm.my_leader_id == target_id:
+		hhm.release_leader("用户操作")
+		return
+	if hhm.my_follower_ids.has(target_id):
+		hhm.release_follower(target_id, "用户操作")
+		return
+	
 	hhm.request_hold(target_id, target_name)
-	print("🤝 发起牵手请求 → %s" % target_name)
 
 func _handle_release_handhold(player_id: String) -> void:
 	"""松开手"""
 	var hhm = get_node("/root/HandHoldManager") if has_node("/root/HandHoldManager") else null
 	if hhm:
-		hhm.release_hold()
+		# 如果对方是我的领队 → 松开领队
+		# 如果对方是我的跟随者 → 松开具体那个
+		if hhm.my_leader_id == player_id:
+			hhm.release_leader("用户操作")
+		elif hhm.my_follower_ids.has(player_id):
+			hhm.release_follower(player_id, "用户操作")
+		else:
+			hhm.release_all("用户操作")
 
 ## 根据ID获取远程玩家节点
 func get_player_node(player_id: String) -> Node3D:

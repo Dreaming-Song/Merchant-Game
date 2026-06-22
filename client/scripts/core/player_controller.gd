@@ -295,7 +295,7 @@ func _do_interact() -> void:
 	# 优先检查牵手状态
 	var hhm = get_node("/root/HandHoldManager") if has_node("/root/HandHoldManager") else null
 	if hhm and hhm.is_holding():
-		hhm.release_hold("交互键松开")
+		hhm.release_all("交互键松开")
 		return
 	
 	var detector = get_node("/root/InteractionDetector") if has_node("/root/InteractionDetector") else null
