@@ -225,6 +225,8 @@ def test_project_structure():
         "client/scripts/quest/quest_system.gd",
         "client/scripts/combat/enemy.gd",
         "client/scripts/secret_zone/secret_zone.gd",
+        "client/scripts/combat/world_boss.gd",
+        "client/scripts/combat/boss_manager.gd",
         "client/project.godot",
         "docs/game-design.md",
         "docs/phase-plan.md",

@@ -82,6 +82,18 @@ func _register_default_pois() -> void:
 	register_poi("celestial_portal", "天穹传送阵", "上古传送阵，可通往未知领域",
 		Vector3(100, 0, -80), POIType.PORTAL, 25.0)
 	
+	# 五行神兽区域（与 BossManager 同步）
+	register_poi("boss_青龙", "东方木德·青龙", "青翠竹林中的远古神兽",
+		Vector3(15, 0, 20), POIType.BOSS, 40.0)
+	register_poi("boss_白虎", "西方金德·白虎", "寒雪山巅的万兽之主",
+		Vector3(20, 0, 85), POIType.BOSS, 40.0)
+	register_poi("boss_朱雀", "南方火德·朱雀", "灵焰火山中的涅槃圣禽",
+		Vector3(-80, 5, 60), POIType.BOSS, 40.0)
+	register_poi("boss_玄武", "北方水德·玄武", "幽暗沼泽中的远古巨兽",
+		Vector3(-60, 0, -50), POIType.BOSS, 40.0)
+	register_poi("boss_麒麟", "中央土德·麒麟", "落霞枫林中的祥瑞之兽",
+		Vector3(-40, 0, 30), POIType.BOSS, 40.0)
+	
 	# 隐藏
 	register_poi("hidden_cave", "隐龙窟", "瀑布后的隐秘洞穴，藏有绝世珍宝",
 		Vector3(30, 0, -45), POIType.SECRET, 8.0)
