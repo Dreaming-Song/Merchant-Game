@@ -21,13 +21,21 @@ jobs:
         run: |
           cd server
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio websockets
+          pip install pytest pytest-asyncio
 
       - name: 启动服务端并测试
         run: |
           cd server
           python main.py &
-          sleep 2
+          # 等待服务端就绪
+          for i in $(seq 1 10); do
+            if python -c "import urllib.request; urllib.request.urlopen('http://localhost:8765/api/health')" 2>/dev/null; then
+              echo "✅ 服务端已就绪"
+              break
+            fi
+            echo "⏳ 等待服务端启动... ($i/10)"
+            sleep 1
+          done
           cd ..
           python -m pytest tests/test_server.py -v --tb=short
 
