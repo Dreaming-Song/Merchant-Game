@@ -118,12 +118,12 @@ class RoomManager:
             return False
         self.player_to_room[player_id] = room_id
 
-        # 广播新玩家加入
+        # 广播新玩家加入（排除自己，避免重复通知）
         room.broadcast({
             "type": "player_joined",
             "player_id": player_id,
             "players": list(room.players.keys())
-        })
+        }, exclude=player_id)
         logger.info(f"👤 {player_id} 加入房间 {room_id}")
         return True
 
@@ -167,7 +167,7 @@ async def list_rooms():
 async def create_room(data: RoomCreate):
     """创建房间"""
     room = room_manager.create_room(data.name, data.max_players, data.password)
-    return {"room_id": room.room_id, "name": room.name}
+    return {"room_id": room.room_id, "name": room.name, "has_password": room.password is not None}
 
 @app.get("/api/health")
 async def health_check():
