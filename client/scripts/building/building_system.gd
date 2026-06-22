@@ -96,7 +96,8 @@ var _piece_counter: int = 0
 var grid_size: float = 1.0
 var build_range: float = 8.0  # 玩家可放置距离
 
-@onready var _player_ref: Node3D
+## 玩家引用（由 GameManager 注入 🔧 B3）
+var player_ref: Node3D = null
 
 signal piece_placed(piece_id: String, piece_type: int, tier: int, position: Vector3)
 signal piece_destroyed(piece_id: String, piece_type: int, position: Vector3)
@@ -124,8 +125,8 @@ func try_place(piece_type: int, tier: int, position: Vector3, rotation: float = 
 				return {"success": false, "reason": "需要下方有支撑"}
 	
 	# 4. 检查范围
-	if _player_ref:
-		var dist = grid_pos.distance_to(_player_ref.global_position)
+	if player_ref:
+		var dist = grid_pos.distance_to(player_ref.global_position)
 		if dist > build_range:
 			return {"success": false, "reason": "距离太远"}
 	
@@ -147,6 +148,66 @@ func try_place(piece_type: int, tier: int, position: Vector3, rotation: float = 
 	
 	return {"success": true, "piece": piece}
 
+## 放置工作站（在场景中创建 WorkstationStation 节点）
+func try_place_station(station_type: int, position: Vector3) -> Dictionary:
+	"""
+	放置工作站物理对象
+	station_type: WorkstationStation.StationType 枚举
+	"""
+	var grid_pos = _snap_to_grid(position)
+	var grid_key = _grid_key(grid_pos)
+	
+	# 检查是否已被占用
+	if _placed_pieces.has(grid_key):
+		return {"success": false, "reason": "该位置已有建筑"}
+	
+	# 检查范围
+	if player_ref:
+		var dist = grid_pos.distance_to(player_ref.global_position)
+		if dist > build_range:
+			return {"success": false, "reason": "距离太远"}
+	
+	# 获取工作站数据
+	var station_name = WorkstationStation.STATION_DISPLAY_NAMES.get(station_type, "工作站")
+	var station_id = WorkstationStation.STATION_NAMES.get(station_type, "workbench")
+	
+	# 创建工作站节点
+	var station = WorkstationStation.new()
+	station.name = "Station_%s_%s" % [station_id, _piece_counter]
+	station.station_type = station_type
+	station.position = grid_pos
+	station.station_name = station_name
+	
+	# 添加到世界场景
+	if player_ref and player_ref.get_parent():
+		player_ref.get_parent().add_child(station)
+	else:
+		get_tree().root.add_child(station)
+	
+	# 记录到建筑系统
+	_piece_counter += 1
+	var piece = {
+		"id": "station_%d" % _piece_counter,
+		"type": PieceType.STATION,
+		"tier": 0,
+		"position": grid_pos,
+		"rotation": 0.0,
+		"hp": 200,
+		"max_hp": 200,
+		"station_type": station_type,
+		"station_id": station_id,
+		"station_node": station,
+		"grid_key": grid_key,
+	}
+	_placed_pieces[grid_key] = piece
+	
+	piece_placed.emit(piece.id, PieceType.STATION, 0, grid_pos)
+	print("🏗️ 放置工作站: %s 于 (%d, %d, %d)" % [
+		station_name, int(grid_pos.x), int(grid_pos.y), int(grid_pos.z)
+	])
+	
+	return {"success": true, "piece": piece}
+
 ## 拆除建筑
 func demolish(grid_pos: Vector3) -> Dictionary:
 	var grid_key = _grid_key(grid_pos)
@@ -155,6 +216,10 @@ func demolish(grid_pos: Vector3) -> Dictionary:
 	
 	var piece = _placed_pieces[grid_key]
 	_placed_pieces.erase(grid_key)
+	
+	# 如果是工作站，销毁场景节点
+	if piece.get("station_node"):
+		piece.station_node.queue_free()
 	
 	# 返还部分材料（50%）
 	# TODO: 调用CraftingSystem返还

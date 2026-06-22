@@ -83,6 +83,7 @@ func _initialize_systems() -> void:
 	# 5. 合成系统
 	crafting = CraftingSystem.new()
 	add_child(crafting)
+	crafting._inventory = inventory  # 🔧 B2: 注入背包引用
 	print("  ✅ CraftingSystem")
 	
 	# 6. 建筑系统
@@ -121,6 +122,23 @@ func _connect_signals() -> void:
 	
 	# 建筑放置 → 消耗背包材料
 	building.piece_placed.connect(_on_piece_placed)
+	
+	# 🔧 L5: 死亡信号暂不连接（player创建后由 set_player 连接）
+
+## 🔧 设置玩家引用（由 PlayerController._ready 调用）
+func set_player(player_node: Node3D) -> void:
+	player = player_node
+	building.player_ref = player_node  # 🔧 B3: 注入建筑系统的玩家引用
+	player_died.connect(_on_player_died)  # 🔧 L5: 连接死亡信号
+	print("👤 玩家引用注入完成")
+
+func _on_player_died() -> void:
+	print("💀 玩家阵亡，存档丢失！")
+	# 死亡惩罚：掉一半修行点数
+	if cultivation:
+		var lost = cultivation.cultivation_points / 2
+		cultivation.cultivation_points -= lost
+		print("  失去 %d 修行点数" % lost)
 
 # ==================== 游戏生命周期 ====================
 
@@ -161,69 +179,92 @@ func toggle_pause() -> void:
 			game_state_changed.emit(GameState.PAUSED, GameState.PLAYING)
 
 ## 存档
-func save_game(slot: int = 0) -> bool:
+func save_game() -> bool:
+	"""保存到当前世界（由 WorldManager 管理）"""
 	if current_state not in [GameState.PLAYING, GameState.PAUSED]:
 		return false
 	
 	current_state = GameState.SAVING
 	
+	var wm = get_node("/root/WorldManager")
+	if not wm or wm.current_world.is_empty():
+		print("⚠️ 没有当前世界，无法存档")
+		current_state = GameState.PLAYING
+		return false
+	
 	var save_data = {
-		"version": "0.1",
 		"game_time": game_time,
-		"world_seed": map_gen.world_seed,
-		"realm": realm.get_save_data(),
-		"cultivation": cultivation.get_save_data(),
-		"inventory": inventory.get_save_data(),
-		"building": building.get_save_data(),
+		"world_seed": map_gen.world_seed if map_gen else 0,
+		"realm": realm.get_save_data() if realm else {},
+		"cultivation": cultivation.get_save_data() if cultivation else {},
+		"inventory": inventory.get_save_data() if inventory else {},
+		"building": building.get_save_data() if building else {},
 	}
 	
-	# 调用存档系统
-	var save_sys = get_node("/root/SaveSystem")
-	if save_sys:
-		var ok = save_sys.save_game(save_data, slot)
-		print("💾 存档到槽位 %d %s" % [slot, "成功" if ok else "失败"])
+	var player_data = {
+		"_delta_time": 0.0,
+		"_player_count": 1,
+		"inventory": save_data.inventory,
+		"realm": save_data.realm,
+		"cultivation": save_data.cultivation,
+	}
+	
+	var world_state = {
+		"game_time": game_time,
+		"world_seed": save_data.world_seed,
+		"building": save_data.building,
+	}
+	
+	if wm.save_system and wm.save_system.has_method("save_world"):
+		var ok = wm.save_system.save_world(wm.current_world, player_data, world_state)
+		print("💾 WorldManager 存档 %s" % ["成功" if ok else "失败"])
 	else:
-		# 无存档系统，存本地文件
-		var file = FileAccess.open("user://save_%d.json" % slot, FileAccess.WRITE)
-		if file:
-			file.store_string(JSON.stringify(save_data))
-			file.close()
-			print("💾 存档到文件 save_%d.json" % slot)
+		print("⚠️ 无 SaveSystem，存档失败")
 	
 	current_state = GameState.PLAYING
 	return true
 
 ## 读档
-func load_game(slot: int = 0) -> bool:
+func load_game() -> bool:
+	"""从当前世界加载存档"""
 	current_state = GameState.LOADING
 	
-	var save_sys = get_node("/root/SaveSystem")
-	var save_data = {}
-	
-	if save_sys:
-		save_data = save_sys.load_game(slot)
-	else:
-		if not FileAccess.file_exists("user://save_%d.json" % slot):
-			return false
-		var file = FileAccess.open("user://save_%d.json" % slot, FileAccess.READ)
-		if file:
-			save_data = JSON.parse_string(file.get_as_text())
-			file.close()
-	
-	if save_data.is_empty():
+	var wm = get_node("/root/WorldManager")
+	if not wm or wm.current_world.is_empty():
+		print("⚠️ 没有当前世界，无法读档")
+		current_state = GameState.PLAYING
 		return false
 	
-	# 恢复各系统
-	game_time = save_data.get("game_time", 0.0)
-	map_gen.world_seed = save_data.get("world_seed", randi())
-	realm.load_save_data(save_data.get("realm", {}))
-	cultivation.load_save_data(save_data.get("cultivation", {}))
-	inventory.load_save_data(save_data.get("inventory", {}))
-	building.load_save_data(save_data.get("building", {}))
+	var data = wm.save_system.load_world(wm.current_world) if wm.save_system else {}
+	if data.is_empty():
+		print("⚠️ 存档数据为空")
+		current_state = GameState.PLAYING
+		return false
 	
-	# 重新生成世界
-	world_data = map_gen.generate_world()
-	world_loaded.emit(world_data)
+	var player_data = data.get("player_data", {})
+	var world_state = data.get("world_state", {})
+	
+	game_time = world_state.get("game_time", 0.0)
+	
+	if map_gen:
+		var meta = data.get("meta", {})
+		map_gen.world_seed = meta.get("seed", randi())
+	
+	# 恢复各系统
+	if realm and player_data.has("realm"):
+		realm.load_save_data(player_data.realm)
+	if cultivation and player_data.has("cultivation"):
+		cultivation.load_save_data(player_data.cultivation)
+	if inventory and player_data.has("inventory"):
+		inventory.load_save_data(player_data.inventory)
+	if building and world_state.has("building"):
+		building.load_save_data(world_state.building)
+	
+	# 恢复玩家位置
+	var pos = player_data.get("player_pos", [0, 5, 0])
+	var player = get_tree().get_first_node_in_group("player")
+	if player:
+		player.global_position = Vector3(pos[0], pos[1], pos[2])
 	
 	current_state = GameState.PLAYING
 	game_state_changed.emit(GameState.LOADING, GameState.PLAYING)
@@ -295,7 +336,7 @@ func _find_equipped_tool_slot() -> int:
 			return i
 	return -1
 
-## 建造建筑
+## 建造建筑（支持工作站放置）
 func place_building(item_id: String, position: Vector3) -> Dictionary:
 	var item_data = ItemDatabase.get_item(item_id)
 	if not item_data.get("buildable", false) and not item_data.get("placeable", false):
@@ -305,15 +346,48 @@ func place_building(item_id: String, position: Vector3) -> Dictionary:
 	if not inventory.has_item(item_id, 1):
 		return {"success": false, "reason": "材料不足"}
 	
-	# 告诉建筑系统放置
 	var piece_type = item_data.get("piece_type", 0)
 	var piece_tier = item_data.get("piece_tier", 0)
-	var result = building.try_place(piece_type, piece_tier, position)
+	var result: Dictionary
 	
-	if result.success:
+	# ---- DST/Terraria风格：工作站类型检测 ----
+	# 检查物品是否是工作站（category=station 或 result 命中工作站配方）
+	var category = item_data.get("category", "")
+	var is_station = (category == "station")
+	
+	if is_station:
+		# 通过物品ID匹配工作站类型
+		var station_type = _get_station_type(item_id)
+		result = building.try_place_station(station_type, position)
+	else:
+		# 普通建筑块
+		result = building.try_place(piece_type, piece_tier, position)
+	
+	if result.get("success", false):
 		inventory.remove_item(item_id, 1)
+	else:
+		print("❌ 放置失败: %s" % result.get("reason", "未知"))
 	
 	return result
+
+## 通过物品ID获取工作站类型
+func _get_station_type(item_id: String) -> int:
+	# 先用 ItemDatabase 的 place_type 字段匹配
+	var item_data = ItemDatabase.get_item(item_id)
+	var place_type = item_data.get("place_type", "")
+	if not place_type.is_empty():
+		return WorkstationStation.get_station_type_from_recipe(place_type)
+	
+	# 降级：硬编码匹配
+	match item_id:
+		"workbench":       return WorkstationStation.StationType.WORKBENCH
+		"furnace":         return WorkstationStation.StationType.FURNACE
+		"anvil":           return WorkstationStation.StationType.ANVIL
+		"alchemy_furnace": return WorkstationStation.StationType.ALCHEMY_TABLE
+		"loom":            return WorkstationStation.StationType.LOOM
+		"spirit_furnace":  return WorkstationStation.StationType.SPIRIT_FURNACE
+		"rune_table":      return WorkstationStation.StationType.RUNE_TABLE
+	return WorkstationStation.StationType.WORKBENCH
 
 ## 合成物品
 func craft_item(recipe_id: String, count: int = 1) -> Dictionary:
@@ -322,14 +396,24 @@ func craft_item(recipe_id: String, count: int = 1) -> Dictionary:
 ## 使用物品
 func use_item(slot_index: int) -> Dictionary:
 	var result = inventory.use_item(slot_index)
-	if result.success:
-		# 使用丹药获得修为
-		if result.effects.has("hp_restore"):
-			print("💚 恢复 %d 生命" % result.effects.hp_restore)
-		if result.effects.has("mp_restore"):
-			print("💙 恢复 %d 法力" % result.effects.mp_restore)
-		if result.effects.has("breakthrough_boost"):
-			var xp = result.effects.breakthrough_boost * 500
+	if result.get("success", false):
+		var effects = result.get("effects", {})
+		# 🔧 B1: 用 .get() 替代点号语法
+		var hp_restore = effects.get("hp_restore", 0)
+		var mp_restore = effects.get("mp_restore", 0)
+		var breakthrough_boost = effects.get("breakthrough_boost", 0)
+		
+		if hp_restore > 0:
+			print("💚 恢复 %d 生命" % hp_restore)
+			# 🔧 L4: 实际调用玩家治疗
+			if player and player.has_method("heal"):
+				player.heal(hp_restore)
+		if mp_restore > 0:
+			print("💙 恢复 %d 法力" % mp_restore)
+			if skill_manager and skill_manager.has_method("restore_mp"):
+				skill_manager.restore_mp(mp_restore)
+		if breakthrough_boost > 0:
+			var xp = breakthrough_boost * 500
 			realm.add_cultivation_xp(xp)
 			print("🌟 获得 %d 修为（突破助力）" % xp)
 	return result
@@ -340,4 +424,7 @@ func invest_cultivation(school_type: int, levels: int = 1) -> bool:
 
 ## 尝试境界突破
 func try_breakthrough() -> bool:
-	return realm.try_breakthrough(func(_item, _count): return inventory.has_item(_item, _count))
+	return realm.try_breakthrough(
+		func(_item, _count): return inventory.has_item(_item, _count),
+		func(_item, _count): inventory.remove_item(_item, _count)  # 🔧 B4: 消耗突破材料
+	)

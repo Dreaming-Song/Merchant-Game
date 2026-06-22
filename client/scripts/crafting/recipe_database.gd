@@ -7,20 +7,6 @@ extends Node
 
 class_name RecipeDatabase
 
-# ==================== 配方结构 ====================
-struct Recipe:
-	var id: String
-	var name: String
-	var desc: String
-	var category: String          # tool/weapon/building/alchemy/talisman/furniture/decoration
-	var station: String           # 合成台名称，""=徒手
-	var materials: Dictionary     # {"item_id": count}
-	var result: String            # 产出物ID
-	var result_count: int         # 产出数量
-	var craft_time: float         # 合成耗时（秒）
-	var realm_required: int       # 所需境界
-	var tier: int                 # 材料等级
-
 # ==================== 所有配方 ====================
 const RECIPES: Dictionary = {
 	# ========== Tier 0：凡人期 ==========
@@ -330,6 +316,161 @@ const RECIPES: Dictionary = {
 		"result": "artifact_sword", "result_count": 1,
 		"craft_time": 120.0, "realm_required": 6, "tier": 6,
 		"desc": "后天灵宝，一剑可斩山河",
+	},
+	
+	# ========== 铁砧（ANVIL）配方 ==========
+	"anvil": {
+		"name": "铁砧", "category": "station", "station": "furnace",
+		"materials": {"iron_ingot": 8, "stone": 4},
+		"result": "anvil", "result_count": 1,
+		"craft_time": 8.0, "realm_required": 1, "tier": 1,
+		"desc": "锻造高级武器和护甲的工作站",
+	},
+	"iron_helmet": {
+		"name": "铁头盔", "category": "armor", "station": "anvil",
+		"materials": {"iron_ingot": 5},
+		"result": "iron_helmet", "result_count": 1,
+		"craft_time": 6.0, "realm_required": 1, "tier": 1,
+		"desc": "基础铁质头盔",
+	},
+	"iron_chestplate": {
+		"name": "铁胸甲", "category": "armor", "station": "anvil",
+		"materials": {"iron_ingot": 8},
+		"result": "iron_chestplate", "result_count": 1,
+		"craft_time": 8.0, "realm_required": 1, "tier": 1,
+		"desc": "基础铁质胸甲",
+	},
+	"iron_legs": {
+		"name": "铁护腿", "category": "armor", "station": "anvil",
+		"materials": {"iron_ingot": 6},
+		"result": "iron_legs", "result_count": 1,
+		"craft_time": 7.0, "realm_required": 1, "tier": 1,
+		"desc": "基础铁质护腿",
+	},
+	"spirit_helmet": {
+		"name": "灵铁头盔", "category": "armor", "station": "anvil",
+		"materials": {"spirit_iron": 5, "spirit_stone": 2},
+		"result": "spirit_helmet", "result_count": 1,
+		"craft_time": 10.0, "realm_required": 2, "tier": 2,
+		"desc": "灵铁锻造，灵气护体",
+	},
+	"spirit_chestplate": {
+		"name": "灵铁胸甲", "category": "armor", "station": "anvil",
+		"materials": {"spirit_iron": 8, "spirit_stone": 3},
+		"result": "spirit_chestplate", "result_count": 1,
+		"craft_time": 12.0, "realm_required": 2, "tier": 2,
+		"desc": "灵铁胸甲，防御大增",
+	},
+	
+	# ========== 织布机（LOOM）配方 ==========
+	"loom": {
+		"name": "织布机", "category": "station", "station": "workbench",
+		"materials": {"wood": 8, "vine": 4},
+		"result": "loom", "result_count": 1,
+		"craft_time": 6.0, "realm_required": 0, "tier": 0,
+		"desc": "编织布料和防具的工作站",
+	},
+	"cloth": {
+		"name": "布匹", "category": "material", "station": "loom",
+		"materials": {"vine": 4, "silk": 2},
+		"result": "cloth", "result_count": 2,
+		"craft_time": 3.0, "realm_required": 0, "tier": 0,
+		"desc": "基础布料，制作防具的原材料",
+	},
+	"cloth_robe": {
+		"name": "布衣", "category": "armor", "station": "loom",
+		"materials": {"cloth": 4, "vine": 2},
+		"result": "cloth_robe", "result_count": 1,
+		"craft_time": 4.0, "realm_required": 0, "tier": 0,
+		"desc": "基础布衣，聊胜于无",
+	},
+	"silk_robe": {
+		"name": "灵丝绸衣", "category": "armor", "station": "loom",
+		"materials": {"silk": 6, "cloth": 2},
+		"result": "silk_robe", "result_count": 1,
+		"craft_time": 8.0, "realm_required": 2, "tier": 2,
+		"desc": "灵丝编织，轻便而坚韧",
+	},
+	
+	# ========== 符文台（RUNE_TABLE）配方 ==========
+	"rune_table": {
+		"name": "符文台", "category": "station", "station": "workbench",
+		"materials": {"stone": 10, "spirit_stone": 5, "ink": 3},
+		"result": "rune_table", "result_count": 1,
+		"craft_time": 12.0, "realm_required": 1, "tier": 1,
+		"desc": "铭刻符文、附魔装备的工作站",
+	},
+	"rune_sharp": {
+		"name": "锋锐符文", "category": "rune", "station": "rune_table",
+		"materials": {"spirit_stone": 2, "ink": 2},
+		"result": "rune_sharp", "result_count": 1,
+		"craft_time": 5.0, "realm_required": 1, "tier": 1,
+		"desc": "武器附魔：增加10%攻击力",
+	},
+	"rune_tough": {
+		"name": "坚韧符文", "category": "rune", "station": "rune_table",
+		"materials": {"spirit_stone": 2, "ink": 2},
+		"result": "rune_tough", "result_count": 1,
+		"craft_time": 5.0, "realm_required": 1, "tier": 1,
+		"desc": "防具附魔：增加10%防御力",
+	},
+	"rune_speed": {
+		"name": "神行符文", "category": "rune", "station": "rune_table",
+		"materials": {"spirit_stone": 3, "ink": 2, "herb_qi": 2},
+		"result": "rune_speed", "result_count": 1,
+		"craft_time": 6.0, "realm_required": 1, "tier": 1,
+		"desc": "鞋子附魔：增加15%移速",
+	},
+	"rune_regen": {
+		"name": "回春符文", "category": "rune", "station": "rune_table",
+		"materials": {"spirit_stone": 3, "ink": 3, "herb_spirit": 2},
+		"result": "rune_regen", "result_count": 1,
+		"craft_time": 8.0, "realm_required": 2, "tier": 2,
+		"desc": "装备附魔：每秒恢复0.5%生命",
+	},
+	"rune_fire": {
+		"name": "烈焰符文", "category": "rune", "station": "rune_table",
+		"materials": {"spirit_stone": 5, "ink": 3, "fire_essence": 2},
+		"result": "rune_fire", "result_count": 1,
+		"craft_time": 10.0, "realm_required": 2, "tier": 2,
+		"desc": "武器附魔：额外火焰伤害",
+	},
+	
+	# ========== 熔炉新增配方 ==========
+	"iron_ingot": {
+		"name": "铁锭", "category": "material", "station": "furnace",
+		"materials": {"iron_ore": 2},
+		"result": "iron_ingot", "result_count": 1,
+		"craft_time": 4.0, "realm_required": 0, "tier": 0,
+		"desc": "冶炼铁矿石得到铁锭",
+	},
+	"gold_ingot": {
+		"name": "金锭", "category": "material", "station": "furnace",
+		"materials": {"gold_ore": 2},
+		"result": "gold_ingot", "result_count": 1,
+		"craft_time": 4.0, "realm_required": 1, "tier": 1,
+		"desc": "冶炼金矿得到金锭",
+	},
+	"spirit_iron": {
+		"name": "灵铁", "category": "material", "station": "furnace",
+		"materials": {"spirit_ore": 2},
+		"result": "spirit_iron", "result_count": 1,
+		"craft_time": 6.0, "realm_required": 1, "tier": 1,
+		"desc": "冶炼灵矿得到灵铁",
+	},
+	"spirit_brick": {
+		"name": "灵砖", "category": "material", "station": "furnace",
+		"materials": {"stone": 2, "spirit_stone": 1},
+		"result": "spirit_brick", "result_count": 2,
+		"craft_time": 5.0, "realm_required": 2, "tier": 2,
+		"desc": "灌注灵气的砖块",
+	},
+	"glass": {
+		"name": "玻璃", "category": "material", "station": "furnace",
+		"materials": {"sand": 2},
+		"result": "glass", "result_count": 2,
+		"craft_time": 3.0, "realm_required": 1, "tier": 1,
+		"desc": "烧制玻璃，用于窗户",
 	},
 }
 

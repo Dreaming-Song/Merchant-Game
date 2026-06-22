@@ -443,6 +443,27 @@ const ITEMS: Dictionary = {
 		"desc": "精炼灵矿，锻造法器",
 		"placeable": true, "place_type": "spirit_furnace",
 	},
+	"anvil": {
+		"name": "铁砧", "category": ItemCategory.STATION, "quality": Quality.UNCOMMON,
+		"tier": 1, "stackable": false, "max_stack": 1,
+		"icon": "anvil", "sell_price": 25,
+		"desc": "锻造高级武器和护甲的工作站",
+		"placeable": true, "place_type": "anvil",
+	},
+	"loom": {
+		"name": "织布机", "category": ItemCategory.STATION, "quality": Quality.COMMON,
+		"tier": 0, "stackable": false, "max_stack": 1,
+		"icon": "loom", "sell_price": 15,
+		"desc": "编织布料和防具的工作站",
+		"placeable": true, "place_type": "loom",
+	},
+	"rune_table": {
+		"name": "符文台", "category": ItemCategory.STATION, "quality": Quality.UNCOMMON,
+		"tier": 1, "stackable": false, "max_stack": 1,
+		"icon": "rune_table", "sell_price": 35,
+		"desc": "铭刻符文、附魔装备的工作站",
+		"placeable": true, "place_type": "rune_table",
+	},
 	
 	# ========== 家具/装饰 ==========
 	"wooden_chest": {
@@ -479,6 +500,134 @@ const ITEMS: Dictionary = {
 		"icon": "spirit_lamp", "sell_price": 25,
 		"desc": "散发柔和灵光，照亮大片区域",
 		"placeable": true, "place_type": "lamp",
+	},
+	
+	# ========== 铜矿（熔炼用）🔧 B6 ==========
+	"copper_ore": {
+		"name": "铜矿石", "category": ItemCategory.MATERIAL, "quality": Quality.COMMON,
+		"tier": 0, "stackable": true, "max_stack": 99,
+		"icon": "copper_ore", "sell_price": 2,
+		"desc": "含铜矿石，熔炼可得铜锭",
+		"gatherable": true, "gather_tool": "pickaxe",
+	},
+	"copper_ingot": {
+		"name": "铜锭", "category": ItemCategory.MATERIAL, "quality": Quality.COMMON,
+		"tier": 0, "stackable": true, "max_stack": 99,
+		"icon": "copper_ingot", "sell_price": 3,
+		"desc": "熔炼后的铜锭，基础金属材料",
+	},
+	
+	# ========== 符箓材料 🔧 B6 ==========
+	"paper": {
+		"name": "符纸", "category": ItemCategory.MATERIAL, "quality": Quality.COMMON,
+		"tier": 0, "stackable": true, "max_stack": 99,
+		"icon": "paper", "sell_price": 1,
+		"desc": "绘制符箓的空白符纸",
+	},
+	"ink": {
+		"name": "朱砂墨", "category": ItemCategory.MATERIAL, "quality": Quality.COMMON,
+		"tier": 0, "stackable": true, "max_stack": 99,
+		"icon": "ink", "sell_price": 2,
+		"desc": "朱砂调制的灵墨，绘制符箓必备",
+	},
+	
+	# ========== 缺失的工具 🔧 B6 ==========
+	"stone_hammer": {
+		"name": "石锤", "category": ItemCategory.TOOL, "quality": Quality.COMMON,
+		"tier": 0, "stackable": false, "max_stack": 1,
+		"icon": "stone_hammer", "sell_price": 5,
+		"desc": "拆解建筑，回收材料",
+		"equippable": true, "slot": "tool",
+		"durability": 100,
+	},
+	
+	# ========== 缺失的武器 🔧 B6 ==========
+	"wooden_bow": {
+		"name": "木弓", "category": ItemCategory.WEAPON, "quality": Quality.COMMON,
+		"tier": 0, "stackable": false, "max_stack": 1,
+		"icon": "wooden_bow", "sell_price": 5,
+		"desc": "简易木弓，远程防身",
+		"equippable": true, "slot": "weapon",
+		"stats": {"attack": 4, "crit_rate": 0.03},
+		"durability": 50,
+	},
+	
+	# ========== 缺失的建筑块 🔧 B6 ==========
+	"thatch_floor": {
+		"name": "茅草地板", "category": ItemCategory.BUILDING, "quality": Quality.COMMON,
+		"tier": 0, "stackable": true, "max_stack": 99,
+		"icon": "thatch_floor", "sell_price": 2,
+		"desc": "茅草铺就的地板，HP: 50",
+		"buildable": true, "piece_type": 1, "piece_tier": 0,
+	},
+	"wooden_door": {
+		"name": "木门", "category": ItemCategory.BUILDING, "quality": Quality.COMMON,
+		"tier": 0, "stackable": true, "max_stack": 99,
+		"icon": "wooden_door", "sell_price": 6,
+		"desc": "有门才有家，HP: 80",
+		"buildable": true, "piece_type": 3, "piece_tier": 0,
+	},
+	"spirit_door": {
+		"name": "灵木门", "category": ItemCategory.BUILDING, "quality": Quality.RARE,
+		"tier": 2, "stackable": true, "max_stack": 99,
+		"icon": "spirit_door", "sell_price": 25,
+		"desc": "灵气加持的门，HP: 300",
+		"buildable": true, "piece_type": 3, "piece_tier": 3,
+	},
+	"protection_array": {
+		"name": "护山大阵", "category": ItemCategory.BUILDING, "quality": Quality.EPIC,
+		"tier": 3, "stackable": false, "max_stack": 1,
+		"icon": "protection_array", "sell_price": 500,
+		"desc": "守护整片领地的结界大阵",
+		"buildable": true, "piece_type": 10, "piece_tier": 3,
+	},
+	"teleport_array": {
+		"name": "传送阵", "category": ItemCategory.BUILDING, "quality": Quality.EPIC,
+		"tier": 4, "stackable": false, "max_stack": 1,
+		"icon": "teleport_array", "sell_price": 2000,
+		"desc": "瞬间传送至绑定的其他传送阵",
+		"buildable": true, "piece_type": 10, "piece_tier": 4,
+	},
+	"pocket_dimension": {
+		"name": "洞天福地", "category": ItemCategory.BUILDING, "quality": Quality.LEGENDARY,
+		"tier": 4, "stackable": false, "max_stack": 1,
+		"icon": "pocket_dimension", "sell_price": 10000,
+		"desc": "独立空间洞府",
+		"buildable": true, "piece_type": 10, "piece_tier": 4,
+	},
+	"floating_island": {
+		"name": "浮空平台", "category": ItemCategory.BUILDING, "quality": Quality.LEGENDARY,
+		"tier": 5, "stackable": true, "max_stack": 99,
+		"icon": "floating_island", "sell_price": 5000,
+		"desc": "悬浮于空中的平台，天空之城的基础",
+		"buildable": true, "piece_type": 1, "piece_tier": 5,
+	},
+	
+	# ========== 缺失的符箓 🔧 B6 ==========
+	"basic_talisman": {
+		"name": "基础符箓", "category": ItemCategory.TALISMAN, "quality": Quality.UNCOMMON,
+		"tier": 1, "stackable": true, "max_stack": 99,
+		"icon": "basic_talisman", "sell_price": 10,
+		"desc": "释放一道基础五行法术",
+		"usable": true, "use_effect": {"mp_restore": 0, "effect": "fire_bolt"},
+	},
+	
+	# ========== 缺失的功能建筑 🔧 B6 ==========
+	"herb_garden": {
+		"name": "灵田", "category": ItemCategory.STATION, "quality": Quality.UNCOMMON,
+		"tier": 1, "stackable": false, "max_stack": 1,
+		"icon": "herb_garden", "sell_price": 20,
+		"desc": "种植灵草药材的田地",
+		"placeable": true, "place_type": "herb_garden",
+	},
+	
+	# ========== 缺失的丹药 🔧 B6 ==========
+	"nascent_soul_pill": {
+		"name": "化婴丹", "category": ItemCategory.CONSUMABLE, "quality": Quality.EPIC,
+		"tier": 4, "stackable": true, "max_stack": 10,
+		"icon": "nascent_soul_pill", "sell_price": 2000,
+		"desc": "碎丹成婴的必须丹药",
+		"usable": true, "use_effect": {"breakthrough_boost": 3},
 	},
 }
 

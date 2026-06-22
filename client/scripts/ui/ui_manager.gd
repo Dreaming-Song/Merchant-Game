@@ -20,8 +20,13 @@ class_name UIManager
 @onready var building_panel: Control = $BuildingPanel
 @onready var map_panel: Control = $MapPanel
 @onready var pause_menu: Control = $PauseMenu
+@onready var settings_panel: Control = $SettingsPanel if has_node("SettingsPanel") else _create_settings_panel()
 @onready var help_panel: Control = $HelpPanel
 @onready var dialog_panel: Control = $DialogPanel
+@onready var dialogue_panel_script: Node = $DialoguePanel if has_node("DialoguePanel") else _create_dialogue_panel()
+@onready var chat_panel: Control = $ChatPanel if has_node("ChatPanel") else _create_chat_panel()
+@onready var player_interaction_menu: Control = $PlayerInteractionMenu if has_node("PlayerInteractionMenu") else _create_interaction_menu()
+@onready var emote_wheel: Control = $EmoteWheel if has_node("EmoteWheel") else _create_emote_wheel()
 
 # ==================== 打开面板 ====================
 var _open_panels: Array[String] = []  # 已打开的面板名栈
@@ -33,6 +38,26 @@ signal panel_closed(panel_name: String)
 func _ready() -> void:
 	# 默认隐藏所有面板
 	_close_all()
+	if settings_panel:
+		settings_panel.visible = false
+		settings_panel.back_pressed.connect(_on_settings_back)
+	if dialogue_panel_script:
+		dialogue_panel_script.visible = false
+		dialogue_panel_script.dialogue_ended.connect(_on_dialogue_ended)
+	if chat_panel:
+		chat_panel.visible = false
+	if player_interaction_menu:
+		player_interaction_menu.visible = false
+	if emote_wheel:
+		emote_wheel.visible = false
+
+## 🔧 动态创建设置面板（无需场景预制体）
+func _create_settings_panel() -> Control:
+	var panel = preload("res://scripts/ui/settings_panel.gd").new()
+	panel.name = "SettingsPanel"
+	panel.visible = false
+	add_child(panel)
+	return panel
 
 func _input(event: InputEvent) -> void:
 	if not event.is_pressed():
@@ -41,18 +66,34 @@ func _input(event: InputEvent) -> void:
 	# 快捷键
 	if Input.is_action_just_pressed("ui_cancel"):   # ESC
 		_toggle_pause()
-	elif Input.is_action_just_pressed("toggle_inventory"):  # I
+	elif Input.is_action_just_pressed("toggle_inventory"):  # I / LB
 		toggle_panel("inventory")
-	elif Input.is_action_just_pressed("toggle_crafting"):   # TAB
+	elif Input.is_action_just_pressed("toggle_crafting"):   # TAB / RB
 		toggle_panel("crafting")
-	elif Input.is_action_just_pressed("toggle_cultivation"): # C
+	elif Input.is_action_just_pressed("toggle_cultivation"): # C / Back
 		toggle_panel("cultivation")
-	elif Input.is_action_just_pressed("toggle_building"):   # B
+	elif Input.is_action_just_pressed("toggle_building"):   # B / Start
 		toggle_panel("building")
 	elif Input.is_action_just_pressed("toggle_map"):        # M
 		toggle_panel("map")
 	elif Input.is_action_just_pressed("toggle_help"):       # H
 		toggle_panel("help")
+	
+	# 🔧 手柄 D-pad / B 键导航面板
+	if event is InputEventJoypadButton:
+		match event.button_index:
+			JOY_BUTTON_DPAD_UP:
+				_navigate_focus(FOCUS_UP)
+			JOY_BUTTON_DPAD_DOWN:
+				_navigate_focus(FOCUS_DOWN)
+			JOY_BUTTON_DPAD_LEFT:
+				_navigate_focus(FOCUS_LEFT)
+			JOY_BUTTON_DPAD_RIGHT:
+				_navigate_focus(FOCUS_RIGHT)
+			JOY_BUTTON_B:  # B 键关闭面板
+				if _open_panels.size() > 0:
+					var last = _open_panels.back()
+					close_panel(last)
 
 # ==================== 面板开关 ====================
 
@@ -93,6 +134,12 @@ func open_panel(panel_name: String) -> void:
 		"pause":
 			pause_menu.visible = true
 			
+		"settings":
+			_hide_all_except("settings")
+			settings_panel.visible = true
+			settings_panel._load_current_values()
+			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+			
 		"help":
 			help_panel.visible = true
 			
@@ -122,10 +169,17 @@ func close_panel(panel_name: String) -> void:
 			map_panel.visible = false
 		"pause":
 			pause_menu.visible = false
+		"settings":
+			settings_panel.visible = false
+			# 如果是从暂停菜单进来的，回去
+			if "pause" in _open_panels:
+				pause_menu.visible = true
 		"help":
 			help_panel.visible = false
 		"dialog":
 			dialog_panel.visible = false
+		"dialogue":
+			dialogue_panel_script.visible = false
 	
 	_open_panels.erase(panel_name)
 	panel_closed.emit(panel_name)
@@ -144,8 +198,16 @@ func _close_all() -> void:
 	building_panel.visible = false
 	map_panel.visible = false
 	pause_menu.visible = false
+	settings_panel.visible = false
 	help_panel.visible = false
 	dialog_panel.visible = false
+	dialogue_panel_script.visible = false
+	if chat_panel:
+		chat_panel.visible = false
+	if player_interaction_menu:
+		player_interaction_menu.visible = false
+	if emote_wheel:
+		emote_wheel.visible = false
 
 func _hide_all_except(keep: String) -> void:
 	for panel in _open_panels.duplicate():
@@ -153,6 +215,11 @@ func _hide_all_except(keep: String) -> void:
 			close_panel(panel)
 
 func _toggle_pause() -> void:
+	# 如果当前在设置面板，先关设置
+	if "settings" in _open_panels:
+		close_panel("settings")
+		return
+	
 	if "pause" in _open_panels:
 		close_panel("pause")
 		var gm = get_node("/root/GameManager")
@@ -163,6 +230,33 @@ func _toggle_pause() -> void:
 		var gm = get_node("/root/GameManager")
 		if gm:
 			gm.toggle_pause()
+
+# ==================== 设置面板 ====================
+
+func open_settings() -> void:
+	"""从暂停菜单打开设置面板"""
+	if "pause" in _open_panels:
+		pause_menu.visible = false
+	settings_panel.visible = true
+	settings_panel._load_current_values()
+	if not "settings" in _open_panels:
+		_open_panels.append("settings")
+	panel_opened.emit("settings")
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+func close_settings() -> void:
+	"""关闭设置面板"""
+	settings_panel.visible = false
+	_open_panels.erase("settings")
+	panel_closed.emit("settings")
+	# 回到暂停菜单
+	if "pause" in _open_panels:
+		pause_menu.visible = true
+	if _open_panels.is_empty():
+		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+func _on_settings_back() -> void:
+	close_settings()
 
 # ==================== 面板数据刷新 ====================
 
@@ -191,7 +285,13 @@ func _inventory_show() -> void:
 			equip_slot.text = item.get("name", "")
 
 func _crafting_show() -> void:
-	"""刷新合成面板"""
+	"""刷新合成面板 — DST/Terraria风格：靠近工作站自动过滤"""
+	# 使用 CraftingPanel 脚本（如果有）
+	if crafting_panel.has_method("refresh"):
+		crafting_panel.refresh()
+		return
+	
+	# 降级：旧版刷新（如果新脚本未生效）
 	var gm = get_node("/root/GameManager")
 	if not gm:
 		return
@@ -200,10 +300,21 @@ func _crafting_show() -> void:
 	var container = crafting_panel.get_node("RecipeList")
 	_clear_container(container)
 	
+	# DST风格：按工作站分组显示
+	var nearby = gm.crafting.get_nearby_stations() if gm.crafting.has_method("get_nearby_stations") else []
+	
 	for station in available.keys():
-		# 合成台分栏
+		# 标记附近工作站
+		var station_display = station
+		if station in nearby:
+			station_display = "📍 " + station
+		elif station.is_empty():
+			station_display = "✋ 徒手"
+		else:
+			station_display = "🔒 " + station + " (远离)"
+		
 		var section = Label.new()
-		section.text = "【%s】" % station
+		section.text = "▶ %s" % station_display
 		section.add_theme_font_size_override("font_size", 18)
 		container.add_child(section)
 		
@@ -281,7 +392,7 @@ func _on_craft_btn(recipe_id: String) -> void:
 	var gm = get_node("/root/GameManager")
 	if gm:
 		var result = gm.craft_item(recipe_id)
-		if result.success:
+		if result.get("success", false):
 			# 刷新合成面板
 			_crafting_show()
 		else:
@@ -323,6 +434,22 @@ func _clear_grid(container: Control) -> void:
 	for child in container.get_children():
 		child.queue_free()
 
+## 聚焦指定工作站（由 WorkstationStation 调用）
+func focus_station(station_type: int) -> void:
+	var station_id = WorkstationStation.STATION_NAMES.get(station_type, "workbench")
+	
+	# 如果合成面板已打开，刷新
+	if "crafting" in _open_panels:
+		if crafting_panel.has_method("refresh"):
+			crafting_panel.refresh(station_id)
+	else:
+		# 打开合成面板并聚焦
+		open_panel("crafting")
+		if crafting_panel.has_method("refresh"):
+			crafting_panel.refresh(station_id)
+	
+	print("🔬 聚焦工作站: %s" % WorkstationStation.STATION_DISPLAY_NAMES.get(station_type, "未知"))
+
 func _clear_container(container: Control) -> void:
 	for child in container.get_children():
 		child.queue_free()
@@ -338,5 +465,120 @@ func _create_slot_button(index: int, slot: Dictionary) -> Button:
 		btn.tooltip_text = item.get("desc", "")
 	else:
 		btn.text = ""
-	btn.custom_minimum_size = Vector2(80, 40)
+	btn.custom_minimum_size = Vector2(100, 50)
 	return btn
+
+# ==================== 手柄导航 ====================
+
+func _navigate_focus(direction: int) -> void:
+	"""手柄 D-pad 焦点导航"""
+	var focused = get_viewport().gui_get_focus_owner()
+	if not focused or not focused.is_inside_tree():
+		# 没有焦点，自动聚焦到第一个可聚焦的子节点
+		if _open_panels.size() > 0:
+			var panel_name = _open_panels.back()
+			var panel = get(panel_name + "_panel")
+			if panel:
+				var first = _find_first_focusable(panel)
+				if first:
+					first.grab_focus()
+		return
+	
+	var next: Control = null
+	match direction:
+		FOCUS_DOWN:
+			next = focused.find_next_valid_focus()
+		FOCUS_UP:
+			next = focused.find_prev_valid_focus()
+		FOCUS_LEFT:
+			next = focused.find_prev_valid_focus()
+		FOCUS_RIGHT:
+			next = focused.find_next_valid_focus()
+	
+	if next and next is Control and next.can_focus():
+		next.grab_focus()
+
+func _find_first_focusable(parent: Node) -> Control:
+	"""递归查找第一个可聚焦的子节点"""
+	for child in parent.get_children():
+		if child is Control:
+			if child.can_focus() and child.visible:
+				return child
+			var found = _find_first_focusable(child)
+			if found:
+				return found
+	return null
+
+func open_dialogue(npc: Node) -> void:
+	"""打开对话面板"""
+	# 关闭其他面板
+	_hide_all_except("dialogue")
+	dialogue_panel_script.visible = true
+	dialogue_panel_script.start_dialogue(npc)
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	if not "dialogue" in _open_panels:
+		_open_panels.append("dialogue")
+
+func _on_dialogue_ended() -> void:
+	_open_panels.erase("dialogue")
+	if _open_panels.is_empty():
+		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+func _create_dialogue_panel() -> Control:
+	var panel = preload("res://scripts/ui/dialogue_panel.gd").new()
+	panel.name = "DialoguePanel"
+	panel.visible = false
+	add_child(panel)
+	return panel
+
+## 🔧 创建聊天面板
+func _create_chat_panel() -> Control:
+	var panel = preload("res://scripts/ui/chat_panel.gd").new()
+	panel.name = "ChatPanel"
+	add_child(panel)
+	if panel.has_signal("message_sent"):
+		panel.message_sent.connect(_on_chat_message_sent)
+	return panel
+
+## 🔧 创建玩家交互菜单
+func _create_interaction_menu() -> Control:
+	var menu = preload("res://scripts/ui/player_interaction_menu.gd").new()
+	menu.name = "PlayerInteractionMenu"
+	add_child(menu)
+	if menu.has_signal("action_selected"):
+		menu.action_selected.connect(_on_player_action_selected)
+	return menu
+
+## 🔧 创建表情轮盘
+func _create_emote_wheel() -> Control:
+	var wheel = preload("res://scripts/ui/emote_wheel.gd").new()
+	wheel.name = "EmoteWheel"
+	add_child(wheel)
+	if wheel.has_signal("emote_selected"):
+		wheel.emote_selected.connect(_on_emote_selected)
+	return wheel
+
+## 🔧 聊天消息发送回调
+func _on_chat_message_sent(message: String) -> void:
+	print("💬 聊天: %s" % message)
+
+## 🔧 玩家交互菜单操作回调
+func _on_player_action_selected(player_id: String, action: String) -> void:
+	"""玩家交互菜单操作"""
+	print("🎮 玩家操作: %s → %s" % [action, player_id])
+	var spawner = get_node("/root/PlayerSpawner") if has_node("/root/PlayerSpawner") else null
+	if spawner and spawner.has_method("interact_with_player"):
+		spawner.interact_with_player(player_id, action)
+
+## 🔧 表情轮盘选择回调
+func _on_emote_selected(emote_name: String) -> void:
+	"""表情动作选择"""
+	print("😊 表情: %s" % emote_name)
+	var spawner = get_node("/root/PlayerSpawner") if has_node("/root/PlayerSpawner") else null
+	if spawner and spawner.has_method("interact_with_player"):
+		# 发送表情到所有附近的玩家
+		spawner.interact_with_player("", "emote_" + emote_name)
+
+## 🔧 L7: 检查是否有面板打开（供 PlayerController 判断输入阻断）
+func is_any_panel_open() -> bool:
+	return _open_panels.size() > 0
