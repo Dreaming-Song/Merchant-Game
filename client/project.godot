@@ -22,6 +22,9 @@ RealmSystem="*res://scripts/cultivation/realm_system.gd"
 RecipeDatabase="*res://scripts/crafting/recipe_database.gd"
 CraftingSystem="*res://scripts/crafting/crafting_system.gd"
 BuildingSystem="*res://scripts/building/building_system.gd"
+ItemDatabase="*res://scripts/inventory/item_database.gd"
+InventorySystem="*res://scripts/inventory/inventory_system.gd"
+MapGenerator="*res://scripts/world/map_generator.gd"
 
 [rendering]
 renderer/rendering_method="mobile"
