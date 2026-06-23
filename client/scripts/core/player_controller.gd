@@ -33,6 +33,9 @@ var input_handler: InputHandler
 var is_flying: bool = false
 var wind_direction: Vector3 = Vector3.ZERO  # 气流方向（风场影响）
 
+# ==================== 被牵手牵引 ====================
+var is_being_pulled: bool = false  # 被 HandHoldManager 牵引时跳过本地输入
+
 # ==================== 水域状态 ====================
 var is_in_water: bool = false         # 是否在水中
 var ocean_level: float = -2.0         # 海平面高度（从TerrainManager读取）
@@ -148,6 +151,16 @@ func _physics_process(delta: float) -> void:
 	if is_in_water:
 		_sync_stats()
 		_handle_swimming(delta)
+		return
+	
+	# 🤝 被牵手牵引 → 跳过本地输入，velocity 由 HandHoldManager 设定
+	if is_being_pulled:
+		# 地面时保留重力，防止悬空
+		if not is_on_floor():
+			velocity.y -= 9.8 * delta
+		else:
+			velocity.y = 0
+		move_and_slide()
 		return
 	
 	# 从装备获取移动速度

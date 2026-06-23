@@ -82,6 +82,10 @@ func _ready() -> void:
 	_thread_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 
 func _process(delta: float) -> void:
+	# 每帧先重置牵引标记 → _follow_leader 会重新设为 true
+	if _local_player and _local_player.has_method("is_queued_for_deletion") and not _local_player.is_queued_for_deletion():
+		_local_player.is_being_pulled = false
+	
 	# 如果我是跟随者，跟随我的领队
 	if my_leader_id != "" and my_leader_node and _local_player:
 		_follow_leader(delta)
@@ -275,20 +279,27 @@ func _follow_leader(delta: float) -> void:
 	_sync_leader_state()
 	
 	# 📏 高度同步
-	if my_leader_node.is_flying:
-		# 飞行中：跟随领队高度，保持队形
-		target.y = leader_pos.y
-	elif my_leader_node.is_in_water:
-		# 水域中：跟随领队高度
+	var is_air = my_leader_node.is_flying or my_leader_node.is_in_water
+	if is_air:
 		target.y = leader_pos.y
 	else:
 		# 地面：保持本地水平高度
 		target.y = _local_player.global_position.y
 	
-	# 🏃 平滑插值移动
-	_local_player.global_position = _local_player.global_position.lerp(
-		target, follow_smoothness * delta
-	)
+	# 🏃 物理跟随：velocity toward target（让 Godot 碰撞系统处理障碍物）
+	var current = _local_player.global_position
+	var to_target = target - current
+	
+	# 水平方向：朝目标推动
+	_local_player.velocity.x = to_target.x * follow_smoothness
+	_local_player.velocity.z = to_target.z * follow_smoothness
+	
+	# 垂直方向：飞行/游泳时同步Y轴
+	if is_air:
+		_local_player.velocity.y = to_target.y * follow_smoothness
+	
+	# 标记为被牵引 → PlayerController 会执行 move_and_slide + 重力
+	_local_player.is_being_pulled = true
 	
 	# 面朝领队方向（保持注视）
 	var look_dir = (leader_pos - _local_player.global_position).normalized()
