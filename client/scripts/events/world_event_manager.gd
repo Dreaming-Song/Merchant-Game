@@ -597,7 +597,7 @@ func _create_event_marker(position: Vector3, event_type: int, duration: float) -
 	mat.emission = color
 	mat.emission_energy_multiplier = 1.5
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	marker.material = mat
+	marker.material_override = mat  # 使用 material_override 更安全
 	marker.global_position = position + Vector3(0, 0.1, 0)
 	if is_inside_tree():
 		add_child(marker)
@@ -605,9 +605,11 @@ func _create_event_marker(position: Vector3, event_type: int, duration: float) -
 	# 自动淡出消失
 	var tween = create_tween()
 	tween.tween_method(func(alpha: float):
-		if is_instance_valid(marker) and marker.material:
-			marker.material.emission_energy_multiplier = alpha * 2.0
-			marker.material.albedo_color.a = alpha * 0.3
+		if not is_instance_valid(marker): return
+		var m = marker.material_override
+		if not m: return
+		m.emission_energy_multiplier = alpha * 2.0
+		m.albedo_color.a = alpha * 0.3
 	, 1.0, 0.0, duration)
 	
 	get_tree().create_timer(duration).timeout.connect(func():

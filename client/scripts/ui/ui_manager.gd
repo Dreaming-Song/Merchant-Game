@@ -29,17 +29,17 @@ const ALL_EQUIP_SLOTS: Array[String] = [
 ]
 
 # ==================== 面板引用 ====================
-@onready var hud: Control = $HUD
-@onready var inventory_panel: Control = $InventoryPanel
-@onready var crafting_panel: Control = $CraftingPanel
-@onready var cultivation_panel: Control = $CultivationPanel
+@onready var hud: Control = get_node_or_null("HUD")
+@onready var inventory_panel: Control = get_node_or_null("InventoryPanel")
+@onready var crafting_panel: Control = get_node_or_null("CraftingPanel")
+@onready var cultivation_panel: Control = get_node_or_null("CultivationPanel")
 @onready var building_panel: Control = get_node_or_null("BuildingPanel") if has_node("BuildingPanel") else _create_building_panel()
 @onready var building_mode: Node = null  # 由 _ready 从 PlayerController 获取引用
-@onready var map_panel: Control = $MapPanel
-@onready var pause_menu: Control = $PauseMenu
+@onready var map_panel: Control = get_node_or_null("MapPanel")
+@onready var pause_menu: Control = get_node_or_null("PauseMenu")
 @onready var settings_panel: Control = get_node_or_null("SettingsPanel") if has_node("SettingsPanel") else _create_settings_panel()
-@onready var help_panel: Control = $HelpPanel
-@onready var dialog_panel: Control = $DialogPanel
+@onready var help_panel: Control = get_node_or_null("HelpPanel")
+@onready var dialog_panel: Control = get_node_or_null("DialogPanel")
 @onready var dialogue_panel_script: Node = get_node_or_null("DialoguePanel") if has_node("DialoguePanel") else _create_dialogue_panel()
 @onready var chat_panel: Control = get_node_or_null("ChatPanel") if has_node("ChatPanel") else _create_chat_panel()
 @onready var player_interaction_menu: PopupMenu = get_node_or_null("PlayerInteractionMenu") if has_node("PlayerInteractionMenu") else _create_interaction_menu()

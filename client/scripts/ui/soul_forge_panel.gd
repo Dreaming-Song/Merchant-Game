@@ -9,26 +9,26 @@ class_name SoulForgePanel
 const SoulForgeSystem = preload("res://scripts/crafting/soul_forge_system.gd")
 
 # ==================== 节点引用 ====================
-@onready var item_slot_icon: TextureRect = $ItemSlot/SlotIcon
-@onready var item_slot_border: TextureRect = $ItemSlot/SlotBorder
-@onready var item_name_label: Label = $ItemInfo/ItemName
-@onready var item_category_label: Label = $ItemInfo/ItemCategory
-@onready var source_tabs: HBoxContainer = $SourceTabs
-@onready var source_detail: Control = $SourceDetail
-@onready var source_name_label: Label = $SourceDetail/SourceName
-@onready var source_desc_label: Label = $SourceDetail/SourceDesc
-@onready var source_chance_label: Label = $SourceDetail/ChanceLabel
-@onready var source_vfx_preview: ColorRect = $SourceDetail/VfxPreview
-@onready var execute_button: Button = $SourceDetail/ExecuteBtn
-@onready var cost_label: Label = $SourceDetail/CostLabel
-@onready var result_feedback: Label = $FeedbackLabel
-@onready var durability_bar: TextureProgressBar = $ItemInfo/DurabilityBar
-@onready var soul_status_label: Label = $ItemInfo/SoulStatus
-@onready var station_label: Label = $StationIndicator
+@onready var item_slot_icon: TextureRect = get_node_or_null("ItemSlot/SlotIcon")
+@onready var item_slot_border: TextureRect = get_node_or_null("ItemSlot/SlotBorder")
+@onready var item_name_label: Label = get_node_or_null("ItemInfo/ItemName")
+@onready var item_category_label: Label = get_node_or_null("ItemInfo/ItemCategory")
+@onready var source_tabs: HBoxContainer = get_node_or_null("SourceTabs")
+@onready var source_detail: Control = get_node_or_null("SourceDetail")
+@onready var source_name_label: Label = get_node_or_null("SourceDetail/SourceName")
+@onready var source_desc_label: Label = get_node_or_null("SourceDetail/SourceDesc")
+@onready var source_chance_label: Label = get_node_or_null("SourceDetail/ChanceLabel")
+@onready var source_vfx_preview: ColorRect = get_node_or_null("SourceDetail/VfxPreview")
+@onready var execute_button: Button = get_node_or_null("SourceDetail/ExecuteBtn")
+@onready var cost_label: Label = get_node_or_null("SourceDetail/CostLabel")
+@onready var result_feedback: Label = get_node_or_null("FeedbackLabel")
+@onready var durability_bar: TextureProgressBar = get_node_or_null("ItemInfo/DurabilityBar")
+@onready var soul_status_label: Label = get_node_or_null("ItemInfo/SoulStatus")
+@onready var station_label: Label = get_node_or_null("StationIndicator")
 
 # ============ 概率附魂专属 ============
-@onready var enchant_spinbox: SpinBox = $SourceDetail/EnchantSpinbox
-@onready var enchant_hbox: HBoxContainer = $SourceDetail/EnchantHBox
+@onready var enchant_spinbox: SpinBox = get_node_or_null("SourceDetail/EnchantSpinbox")
+@onready var enchant_hbox: HBoxContainer = get_node_or_null("SourceDetail/EnchantHBox")
 
 # ==================== 数据 ====================
 var _selected_slot_index: int = -1
