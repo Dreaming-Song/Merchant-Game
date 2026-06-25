@@ -3,6 +3,9 @@
 
 class_name BuildingGhost
 
+# ==================== 类型预加载 ====================
+const _SysType = preload("res://scripts/building/building_system.gd")
+
 # ==================== 参数 ====================
 var grid_size: float = 1.0
 var ghost_alpha: float = 0.4
@@ -57,11 +60,11 @@ func update_shape(piece_type: int) -> void:
 		return
 	
 	match piece_type:
-		BuildingSystem.PieceType.WALL, BuildingSystem.PieceType.DOOR:
+		_SysType.PieceType.WALL, _SysType.PieceType.DOOR:
 			var box = BoxMesh.new()
 			box.size = Vector3(1.0, 1.0, 0.15)
 			_ghost_block.mesh = box
-		BuildingSystem.PieceType.FLOOR:
+		_SysType.PieceType.FLOOR:
 			var box = BoxMesh.new()
 			box.size = Vector3(1.0, 0.15, 1.0)
 			_ghost_block.mesh = box

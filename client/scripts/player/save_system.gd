@@ -13,7 +13,7 @@ extends Node
 ##   进入世界时 load_world() → GameManager 分发数据
 ##   退出世界时 save_world() → 所有数据写回硬盘
 
-class_name WorldSaveSystem
+# class_name WorldSaveSystem — 已通过 autoload 注册
 
 signal world_saved(world_name: String)
 signal world_loaded(world_name: String)
@@ -21,7 +21,9 @@ signal world_loaded(world_name: String)
 const WORLDS_DIR: String = "user://worlds/"
 
 func _ready() -> void:
-	DirAccess.make_dir_recursive(WORLDS_DIR)
+	var dir = DirAccess.open("user://")
+	if dir:
+		dir.make_dir_recursive("worlds")
 
 # ==================== 世界管理 ====================
 
@@ -31,7 +33,9 @@ func create_world(name: String, seed: int) -> bool:
 	if DirAccess.dir_exists_absolute(dir_path):
 		return false  # 已存在
 	
-	DirAccess.make_dir_recursive(dir_path)
+	var dir = DirAccess.open("user://")
+	if dir:
+		dir.make_dir_recursive("worlds/" + name)
 	
 	# 写入世界元信息
 	var meta = {
@@ -123,13 +127,13 @@ func list_worlds() -> Array[Dictionary]:
 			var meta = _load_json(WORLDS_DIR + name + "/world.json")
 			if not meta.is_empty():
 				result.append({
-					"name": meta.get("name", name),
-					"seed": meta.get("seed", 0),
-					"created": meta.get("created", 0),
-					"last_played": meta.get("last_played", 0),
-					"play_time": meta.get("play_time", 0.0),
-					"version": meta.get("version", "未知"),
-					"game_mode": meta.get("game_mode", "survival"),
+					"name": meta.get("name") or name,
+					"seed": meta.get("seed") or 0,
+					"created": meta.get("created") or 0,
+					"last_played": meta.get("last_played") or 0,
+					"play_time": meta.get("play_time") or 0.0,
+					"version": meta.get("version") or "未知",
+					"game_mode": meta.get("game_mode") or "survival",
 				})
 		name = dir.get_next()
 	dir.list_dir_end()
@@ -153,8 +157,8 @@ func save_world(name: String, player_data: Dictionary, world_state: Dictionary) 
 	# 更新元信息
 	var meta = _load_json(dir_path + "/world.json")
 	meta["last_played"] = Time.get_unix_time_from_system()
-	meta["play_time"] = meta.get("play_time", 0.0) + player_data.get("_delta_time", 0.0)
-	meta["player_count"] = player_data.get("_player_count", 1)
+	meta["play_time"] = meta.get("play_time") or 0.0 + player_data.get("_delta_time") or 0.0
+	meta["player_count"] = player_data.get("_player_count") or 1
 	_save_json(dir_path + "/world.json", meta)
 	
 	# 玩家数据（去掉临时字段）

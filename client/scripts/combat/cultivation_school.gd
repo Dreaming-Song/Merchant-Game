@@ -191,7 +191,7 @@ static func get_school_data(t: int) -> Dictionary:
 
 ## 流派显示名
 static func get_school_name(t: int) -> String:
-	return get_school_data(t).get("name", "未知")
+	return get_school_data(t).get("name") or "未知"
 
 ## 获取所有流派
 static func get_all_schools() -> Array[int]:

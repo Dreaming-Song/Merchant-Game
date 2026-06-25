@@ -6,7 +6,7 @@ extends Node
 ##   GAMEPAD — 手柄模式（显示手柄按键图标）
 ##   TOUCH — 触屏模式（显示虚拟按键/手势）
 
-class_name InputHandler
+# class_name InputHandler — 已通过 autoload 注册
 
 enum InputMode { KEYBOARD, GAMEPAD, TOUCH }
 
@@ -87,6 +87,20 @@ func get_action_hint(action: String) -> String:
 				"sprint": return "Shift"
 				"sword_fly": return "F"
 				"attack": return "鼠标左键"
+				"toggle_quest": return "J"
+				"toggle_pet": return "P"
+				"toggle_inventory": return "I"
+				"toggle_crafting": return "Tab"
+				"toggle_cultivation": return "C"
+				"toggle_building": return "B"
+				"toggle_map": return "M"
+				"toggle_help": return "H"
+				"toggle_emote": return "B"
+				"drop_item": return "Q"
+				"lock_on": return "鼠标中键"
+				"block": return "Shift"
+				"dodge": return "空格"
+				"cast_spell": return "R"
 				_: return action
 		InputMode.GAMEPAD:
 			match action:
@@ -95,5 +109,20 @@ func get_action_hint(action: String) -> String:
 				"sprint": return "左摇杆按下"
 				"sword_fly": return "Y"
 				"attack": return "RB"
+				"toggle_quest": return "LB"
+				"toggle_pet": return "Back"
+				"toggle_inventory": return "LB"
+				"toggle_crafting": return "RB"
+				"toggle_cultivation": return "Back"
+				"toggle_building": return "Start"
+				"toggle_map": return "Start"
+				"toggle_help": return "Start"
+				"toggle_emote": return "Start"
+				"drop_item": return "X"
+				"lock_on": return "L3"
+				"block": return "RT"
+				"dodge": return "B"
+				"cast_spell": return "A"
 				_: return action
-		_: return "👆"
+		_:
+			return action

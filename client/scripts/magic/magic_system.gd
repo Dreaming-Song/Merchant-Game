@@ -26,7 +26,7 @@ class SpellData:
 var spells: Dictionary = {}  # SpellType -> SpellData
 
 # ---------- 引用 ----------
-@onready var player: CharacterBody3D = get_parent()
+@onready var player: Node = get_parent()
 
 func _ready() -> void:
 	_init_spells()

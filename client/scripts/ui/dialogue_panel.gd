@@ -67,9 +67,13 @@ func _build_ui() -> void:
 	_options_container.add_theme_constant_override("separation", 6)
 	vbox.add_child(_options_container)
 	
-	# 关闭按钮
+	# 关闭按钮（动态按键）
 	var close_hint = Label.new()
-	close_hint.text = "按 ESC 或 B 关闭对话"
+	var ih = get_node("/root/InputHandler") if has_node("/root/InputHandler") else null
+	var close_key = "B"
+	if ih and ih.has_method("is_gamepad_mode") and ih.is_gamepad_mode():
+		close_key = "B"
+	close_hint.text = "按 ESC 或 %s 关闭对话" % close_key
 	close_hint.add_theme_font_size_override("font_size", 12)
 	close_hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 	close_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -78,12 +82,12 @@ func _build_ui() -> void:
 func start_dialogue(npc: Node) -> void:
 	"""开始与 NPC 对话"""
 	_current_npc = npc
-	_speaker_label.text = npc.get("display_name", npc.name) if npc else "??? "
+	_speaker_label.text = npc.get("display_name") or npc.name if npc else "??? "
 	
 	# 获取对话数据
 	if npc and npc.has_method("get_dialogue"):
 		_dialogue_data = npc.get_dialogue()
-		_current_node_id = _dialogue_data.get("start_node", "greeting")
+		_current_node_id = _dialogue_data.get("start_node") or "greeting"
 		_show_node(_current_node_id)
 	else:
 		# 默认对话
@@ -100,15 +104,15 @@ func _show_node(node_id: String) -> void:
 		_add_option("（离开）", "_end_dialogue")
 		return
 	
-	_text_label.text = node_data.get("text", "……")
+	_text_label.text = node_data.get("text") or "……"
 	_clear_options()
 	
 	# 选项
-	var options = node_data.get("options", [])
+	var options = node_data.get("options") or []
 	for opt in options:
-		var text = opt.get("text", "继续")
-		var next = opt.get("next", "")
-		var condition = opt.get("condition", "")
+		var text = opt.get("text") or "继续"
+		var next = opt.get("next") or ""
+		var condition = opt.get("condition") or ""
 		
 		# 检查条件
 		if not condition.is_empty():
@@ -125,7 +129,7 @@ func _show_node(node_id: String) -> void:
 		_add_option(prefix + text, "_on_option_selected", {"next": next, "data": opt})
 
 func _on_option_selected(data: Dictionary) -> void:
-	var next = data.get("next", "")
+	var next = data.get("next") or ""
 	var opt = data.get("data", {})
 	
 	# 触发任务事件
@@ -149,7 +153,7 @@ func _on_option_selected(data: Dictionary) -> void:
 			"heal_player":
 				_heal_player()
 			"teleport":
-				_teleport_player(opt.get("target", ""))
+				_teleport_player(opt.get("target") or "")
 	
 	if next == "_end" or next.is_empty():
 		_end_dialogue()

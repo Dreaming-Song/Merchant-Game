@@ -1,0 +1,50 @@
+{
+  "timestamp": "2026-06-25 11:45:51",
+  "godot_version": "4.3.stable",
+  "total_scripts": 107,
+  "rounds": {
+    "main_scene (default)": {
+      "error_count": 634071,
+      "bugs": {
+        "CRITICAL": [
+          "693k次 add_child on null — 某循环疯狂调用，可能死循环"
+        ],
+        "MAJOR": [
+          "20次 grass_color 赋值为 bool (biome_manager.gd)",
+          "7次 遍历 bool 而非数组 (quest_system.gd:197)",
+          "5次 boss_type 类型错配 (world_boss.gd)",
+          "5次 border_width_all 赋值到 StyleBoxFlat",
+          "4次 字典访问 .node 属性"
+        ],
+        "MINOR": [
+          "PopupMenu 返回类型应为 Control",
+          "float + bool 运算符",
+          "material 赋值到 MeshInstance3D"
+        ]
+      }
+    },
+    "test_world.tscn": {
+      "status": "❌ 加载失败",
+      "bugs": [
+        "Shader 编译失败 — 未知字符 '\"'",
+        "tscn:53 参数解析错误"
+      ]
+    },
+    "test_handhold.tscn": {
+      "status": "❌ 加载失败",
+      "bugs": [
+        "构造函数参数数量错误 (tscn:7)"
+      ]
+    },
+    "main_menu.tscn": {
+      "new_bugs_not_in_default": [
+        "11次 is_inside_tree() 为 false",
+        "9次 style 无效",
+        "2次 audio bus 索引越界 (-1)",
+        "ok_button_disabled 未声明变量",
+        "cancel_button_text 未声明变量",
+        "MultiplayerScreen 返回类型应为 Label"
+      ]
+    }
+  }
+}

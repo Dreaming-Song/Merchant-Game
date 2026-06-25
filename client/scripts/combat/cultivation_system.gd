@@ -10,6 +10,9 @@ extends Node
 
 class_name CultivationSystem
 
+# ==================== 外部依赖 ====================
+const CultivationSchool = preload("res://scripts/combat/cultivation_school.gd")
+
 # ==================== 信号 ====================
 signal school_leveled(school_type: int, new_level: int, mastery_name: String)
 signal skill_unlocked(skill_id: String, skill_name: String, school_name: String)
@@ -104,15 +107,15 @@ func batch_invest(distribution: Dictionary) -> bool:
 func _check_new_skills(school_type: int, old_level: int, new_level: int) -> void:
 	"""检查该流派新等级解锁了哪些技能"""
 	var data = CultivationSchool.get_school_data(school_type)
-	for skill in data.get("skills", []):
-		var skill_id = skill.id
-		var req_level = skill.level
+	for skill in data.get("skills") or []:
+		var skill_id = skill.get("id", "")
+		var req_level = skill.get("level", 1)
 		
 		# 如果之前没解锁，现在达到等级了
 		if old_level < req_level and new_level >= req_level:
 			learned_skills[skill_id] = true
-			skill_unlocked.emit(skill_id, skill.name, data.name)
-			print("📖 解锁技能【%s】（%s Lv.%d）" % [skill.name, data.name, req_level])
+			skill_unlocked.emit(skill_id, skill.get("name", "未知技能"), data.get("name", "未知流派"))
+			print("📖 解锁技能【%s】（%s Lv.%d）" % [skill.get("name", "未知技能"), data.get("name", "未知流派"), req_level])
 
 ## 获取已解锁的所有技能 ID
 func get_learned_skill_ids() -> Array[String]:
@@ -242,14 +245,14 @@ func get_school_overview() -> Array[Dictionary]:
 		var mastery = CultivationSchool.get_mastery_name(level)
 		result.append({
 			"type": st,
-			"name": data.name,
-			"desc": data.desc,
-			"element": data.element,
+			"name": data.get("name", "未知流派"),
+			"desc": data.get("desc", ""),
+			"element": data.get("element", "无"),
 			"level": level,
 			"mastery": mastery,
 			"is_specialized": st == specialized_school,
 			"skills_count": _get_learned_skills_count(st),
-			"total_skills": data.get("skills", []).size(),
+			"total_skills": data.get("skills") or [].size(),
 		})
 	return result
 
@@ -257,8 +260,8 @@ func get_school_overview() -> Array[Dictionary]:
 func _get_learned_skills_count(school_type: int) -> int:
 	var data = CultivationSchool.get_school_data(school_type)
 	var count = 0
-	for skill in data.get("skills", []):
-		if learned_skills.has(skill.id):
+	for skill in data.get("skills") or []:
+		if learned_skills.has(skill.get("id", "")):
 			count += 1
 	return count
 
@@ -283,10 +286,10 @@ func get_save_data() -> Dictionary:
 
 func load_save_data(data: Dictionary) -> void:
 	if data.has("school_levels"):
-		for k in data.school_levels.keys():
-			school_levels[int(k)] = data.school_levels[k]
+		for k in data.get("school_levels", {}).keys():
+			school_levels[int(k)] = data.get("school_levels", {})[k]
 	if data.has("learned_skills"):
-		for skill_id in data.learned_skills:
+		for skill_id in data.get("learned_skills", {}):
 			learned_skills[skill_id] = true
-	cultivation_points = data.get("cultivation_points", 0)
+	cultivation_points = data.get("cultivation_points") or 0
 	specialized_school = data.get("specialized_school", -1)

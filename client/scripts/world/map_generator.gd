@@ -195,7 +195,7 @@ func generate_world() -> Dictionary:
 	# 2. 生成初始区块（出生点附近）
 	var spawn_chunks = _generate_spawn_area()
 	for key in spawn_chunks.keys():
-		world_data.chunks[key] = spawn_chunks[key]
+		world_data["chunks"][key] = spawn_chunks[key]
 	
 	# 3. 确定出生点
 	world_data.spawn_point = _find_spawn_point(world_data)
@@ -217,43 +217,43 @@ func generate_chunk(cx: int, cz: int, biome_map: Dictionary) -> Dictionary:
 	
 	# 获取生物群系
 	var biome = _get_chunk_biome(cx, cz, biome_map)
-	chunk_data.biome = biome
+	chunk_data["biome"] = biome
 	var biome_info = get_biome_data(biome)
 	var rng = RandomNumberGenerator.new()
 	rng.seed = hash(str(world_seed) + "_" + str(cx) + "_" + str(cz))
 	
 	# 生成地形
 	var height_map = _generate_height_map(cx, cz, biome, rng)
-	chunk_data.blocks = height_map
+	chunk_data["blocks"] = height_map
 	
 	# 放置树木
-	if biome_info.trees.size() > 0:
-		chunk_data.trees = _place_features(chunk_data, biome_info.trees, rng)
+	if biome_info.get("trees", {}).size() > 0:
+		chunk_data["trees"] = _place_features(chunk_data, biome_info.get("trees", {}), rng)
 	
 	# 放置矿石
-	if biome_info.ores.size() > 0:
-		chunk_data.ores = _place_ores(chunk_data, biome_info.ores, rng)
+	if biome_info.get("ores", {}).size() > 0:
+		chunk_data["ores"] = _place_ores(chunk_data, biome_info.get("ores", {}), rng)
 	
 	# 放置草药
-	if biome_info.herbs.size() > 0:
-		chunk_data.herbs = _place_features(chunk_data, biome_info.herbs, rng)
+	if biome_info.get("herbs", {}).size() > 0:
+		chunk_data["herbs"] = _place_features(chunk_data, biome_info.get("herbs", {}), rng)
 	
 	# 放置建筑结构
-	if biome_info.get("has_structure", false) and rng.randf() < 0.3:
-		var struct_type = biome_info.structure_pool[rng.randi() % biome_info.structure_pool.size()]
-		chunk_data.structures.append({
+	if biome_info.get("has_structure") or false and rng.randf() < 0.3:
+		var struct_type = biome_info.get("structure_pool", [])[rng.randi() % biome_info.get("structure_pool", []).size()]
+		chunk_data["structures"].append({
 			"type": struct_type,
 			"position": _find_structure_pos(chunk_data, rng),
 		})
 	
 	# 放置怪物出生点
-	var monster_count = rng.randi_range(2, 5 + biome_info.danger_level * 2)
+	var monster_count = rng.randi_range(2, 5 + biome_info.get("danger_level", 0) * 2)
 	for i in range(monster_count):
-		var monster_type = biome_info.monster_pool[rng.randi() % biome_info.monster_pool.size()]
+		var monster_type = biome_info.get("monster_pool", [])[rng.randi() % biome_info.get("monster_pool", []).size()]
 		var x = rng.randi_range(chunk_size * cx, chunk_size * (cx + 1) - 1)
 		var z = rng.randi_range(chunk_size * cz, chunk_size * (cz + 1) - 1)
 		var y = _get_height(height_map, x, z)
-		chunk_data.monsters.append({
+		chunk_data["monsters"].append({
 			"type": monster_type,
 			"position": Vector3(x, y, z),
 		})
@@ -319,7 +319,7 @@ func _get_chunk_biome(cx: int, cz: int, biome_map: Dictionary) -> int:
 func _generate_height_map(cx: int, cz: int, biome: int, rng: RandomNumberGenerator) -> Array:
 	"""使用噪声生成真实地形高度"""
 	var biome_info = get_biome_data(biome)
-	var height_range = biome_info.height_range
+	var height_range = biome_info.get("height_range", [0.0, 0.5])
 	var base_height = (height_range[0] + height_range[1]) * 0.5
 	var height_amp = (height_range[1] - height_range[0]) * 0.5
 	var blocks = []
@@ -352,8 +352,8 @@ func _generate_height_map(cx: int, cz: int, biome: int, rng: RandomNumberGenerat
 			
 			row.append({
 				"height": h,
-				"surface": "water" if is_water else biome_info.surface_block,
-				"subsurface": "sand" if is_water else biome_info.subsurface_block,
+				"surface": "water" if is_water else biome_info.get("surface_block", "grass"),
+				"subsurface": "sand" if is_water else biome_info.get("subsurface_block", "dirt"),
 				"is_water": is_water,
 			})
 		blocks.append(row)
@@ -375,8 +375,8 @@ func _get_height(height_map: Array, x: int, z: int) -> float:
 func _place_features(chunk: Dictionary, feature_rates: Dictionary, rng: RandomNumberGenerator) -> Array:
 	"""放置树木/草药等地面特征"""
 	var features = []
-	var cx = chunk.cx * chunk_size
-	var cz = chunk.cz * chunk_size
+	var cx = chunk["cx"] * chunk_size
+	var cz = chunk["cz"] * chunk_size
 	
 	for feat_id in feature_rates.keys():
 		var rate = feature_rates[feat_id]
@@ -385,7 +385,7 @@ func _place_features(chunk: Dictionary, feature_rates: Dictionary, rng: RandomNu
 		for i in range(count):
 			var x = rng.randi_range(cx, cx + chunk_size - 1)
 			var z = rng.randi_range(cz, cz + chunk_size - 1)
-			var y = _get_height(chunk.blocks, x, z) * 10 + 1
+			var y = _get_height(chunk["blocks"], x, z) * 10 + 1
 			
 			features.append({
 				"type": feat_id,
@@ -398,8 +398,8 @@ func _place_features(chunk: Dictionary, feature_rates: Dictionary, rng: RandomNu
 func _place_ores(chunk: Dictionary, ore_rates: Dictionary, rng: RandomNumberGenerator) -> Array:
 	"""放置矿脉（在地下）"""
 	var ores = []
-	var cx = chunk.cx * chunk_size
-	var cz = chunk.cz * chunk_size
+	var cx = chunk["cx"] * chunk_size
+	var cz = chunk["cz"] * chunk_size
 	
 	for ore_id in ore_rates.keys():
 		var rate = ore_rates[ore_id]
@@ -408,7 +408,7 @@ func _place_ores(chunk: Dictionary, ore_rates: Dictionary, rng: RandomNumberGene
 		for i in range(count):
 			var x = rng.randi_range(cx, cx + chunk_size - 1)
 			var z = rng.randi_range(cz, cz + chunk_size - 1)
-			var surface_height = _get_height(chunk.blocks, x, z) * 10
+			var surface_height = _get_height(chunk["blocks"], x, z) * 10
 			var y = rng.randf_range(-5, surface_height - 1)  # 地下
 			
 			ores.append({
@@ -420,11 +420,11 @@ func _place_ores(chunk: Dictionary, ore_rates: Dictionary, rng: RandomNumberGene
 	return ores
 
 func _find_structure_pos(chunk: Dictionary, rng: RandomNumberGenerator) -> Vector3:
-	var cx = chunk.cx * chunk_size
-	var cz = chunk.cz * chunk_size
+	var cx = chunk["cx"] * chunk_size
+	var cz = chunk["cz"] * chunk_size
 	var x = rng.randi_range(cx + 2, cx + chunk_size - 3)
 	var z = rng.randi_range(cz + 2, cz + chunk_size - 3)
-	var y = _get_height(chunk.blocks, x, z) * 10
+	var y = _get_height(chunk["blocks"], x, z) * 10
 	return Vector3(x, y, z)
 
 func _generate_spawn_area() -> Dictionary:
@@ -439,13 +439,13 @@ func _generate_spawn_area() -> Dictionary:
 
 func _find_spawn_point(world_data: Dictionary) -> Vector3:
 	"""找到第一个草原区块的中心位置"""
-	for key in world_data.chunks.keys():
-		var chunk = world_data.chunks[key]
-		var biome_info = get_biome_data(chunk.biome)
-		if biome_info.danger_level == 0:
-			var cx = chunk.cx * chunk_size + chunk_size / 2
-			var cz = chunk.cz * chunk_size + chunk_size / 2
-			var y = _get_height(chunk.blocks, cx, cz) * 10
+	for key in world_data.get("chunks", {}).keys():
+		var chunk = world_data.get("chunks", {}).get(key, {})
+		var biome_info = get_biome_data(chunk["biome"])
+		if biome_info.get("danger_level", 0) == 0:
+			var cx = chunk["cx"] * chunk_size + chunk_size / 2
+			var cz = chunk["cz"] * chunk_size + chunk_size / 2
+			var y = _get_height(chunk["blocks"], cx, cz) * 10
 			return Vector3(cx, y + 1, cz)
 	return Vector3(0, 1, 0)
 

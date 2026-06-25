@@ -1,4 +1,5 @@
 extends Node
+class_name InventorySystem
 ## 背包系统 — 物品存储/管理/装备
 ##
 ## 功能：
@@ -8,8 +9,8 @@ extends Node
 ## - 物品使用/消耗
 ## - 工具耐久度
 ## - 存档
-
-class_name InventorySystem
+const ItemDatabase = preload("res://scripts/inventory/item_database.gd")
+const CyclopediaSystem = preload("res://scripts/data/cyclopedia_system.gd")
 
 # ==================== 信号 ====================
 signal inventory_changed(slot_index: int, item_id: String, count: int)
@@ -21,25 +22,44 @@ signal durability_changed(slot_index: int, durability: int, max_durability: int)
 signal bag_expanded(new_slots: int)
 
 # ==================== 背包配置 ====================
-var bag_slots: int = 24        # 初始格子数
+## 人物物品栏格子数（始终可用）
+const PERSONAL_SLOT_COUNT: int = 8
+var bag_slots: int = 24        # 总格子数（含人物栏）
 var max_bag_slots: int = 120   # 最大格子数
 
 # ==================== 背包数据 ====================
 ## slots: Array[Dictionary] 每个元素:
-## {item_id: String, count: int, durability: int}
+## {item_id: String, count: int, durability: int, soul_marked: bool}
+## slots[0~7] = 人物物品栏（始终可用）
+## slots[8+]  = 背包物品栏（仅当装备背包时可用）
 var _slots: Array[Dictionary] = []
 
 # ==================== 装备栏 ====================
-## 装备槽位
+## 装备槽位（与 item_database 中各物品的 slot 字段值对应）
+## 注意：实际采用字符串 key 驱动，enum 值仅在 UI 中参考
 enum EquipSlot {
-	WEAPON,     # 武器
-	TOOL,       # 工具
-	ARMOR,      # 防具
-	ACCESSORY1, # 饰品1
-	ACCESSORY2, # 饰品2
+	WEAPON,     # 武器（slot: "weapon"）
+	TOOL,       # 工具（slot: "tool"）
+	HELMET,     # 头盔（slot: "helmet"）
+	ARMOR,      # 胸甲（slot: "armor"）
+	LEGS,       # 护腿（slot: "legs"）
+	BOOTS,      # 靴子（slot: "boots"）
+	RING,       # 戒指（slot: "ring"）
+	AMULET,     # 护符（slot: "amulet"）
+	BELT,       # 腰带（slot: "belt"）
+	BRACELET,   # 手镯（slot: "bracelet"）
+	ACCESSORY1, # 饰品1（兼容旧版）
+	ACCESSORY2, # 饰品2（兼容旧版）
 	TRANSPORT,  # 载具
+	BACKPACK,   # 🎒 背包（决定背包栏是否可用）
 }
 var _equipment: Dictionary = {}  # slot_name → item_id
+
+# ==================== 魂器（灵魂印记） ====================
+## 标记为魂器的物品 ID → true（该物品在死亡时保留）
+var _soul_marked_items: Dictionary = {}
+## 如果装备的背包本身是魂器 → 背包栏全部保留
+var _backpack_soul_marked: bool = false
 
 func _ready() -> void:
 	# 初始化背包格子
@@ -78,7 +98,7 @@ func add_item(item_id: String, count: int = 1) -> int:
 	while remaining > 0:
 		var empty_idx = _find_empty_slot()
 		if empty_idx == -1:
-			print("⚠️ 背包已满！%s × %d 无法全部放入" % [item_data.name, remaining])
+			print("⚠️ 背包已满！%s × %d 无法全部放入" % [item_data.get("name", "?"), remaining])
 			break
 		
 		var to_add = min(remaining, max_stack)
@@ -86,7 +106,7 @@ func add_item(item_id: String, count: int = 1) -> int:
 		
 		# 设置耐久度
 		if item_data.has("durability"):
-			_slots[empty_idx].durability = item_data.durability
+			_slots[empty_idx].durability = item_data.get("durability", 1)
 		
 		remaining -= to_add
 		inventory_changed.emit(empty_idx, item_id, to_add)
@@ -126,15 +146,34 @@ func has_item(item_id: String, count: int = 1) -> bool:
 func get_item_count(item_id: String) -> int:
 	var total = 0
 	for slot in _slots:
-		if slot.item_id == item_id:
-			total += slot.count
+		if slot.get("item_id", "") == item_id:
+			total += slot.get("count", 0)
 	return total
 
 ## 获取指定格子的物品
 func get_slot(index: int) -> Dictionary:
 	if index < 0 or index >= _slots.size():
 		return {}
-	return _slots[index].duplicate()
+	return _slots[index]  # 返回引用（允许修改 soul_durability 等字段）
+
+## 获取总格子数
+func get_slot_count() -> int:
+	return _slots.size()
+
+## 获取已装备的某槽位物品 ID
+func get_equipped_item(equip_slot: String) -> String:
+	return _equipment.get(equip_slot, "")
+
+## 查找某物品在背包中的第一个格子索引
+func find_item_slot(item_id: String) -> int:
+	for i in range(_slots.size()):
+		if _slots[i].item_id == item_id and _slots[i].count > 0:
+			return i
+	return -1
+
+## 检查是否装备了背包
+func is_backpack_equipped() -> bool:
+	return _equipment.get("backpack") or "" != ""
 
 ## 交换两个格子
 func swap_slots(from_idx: int, to_idx: int) -> void:
@@ -158,18 +197,18 @@ func split_stack(from_idx: int, count: int) -> bool:
 		return false
 	
 	var from_slot = _slots[from_idx]
-	if from_slot.count <= count:
+	if from_slot.get("count", 0) <= count:
 		return false
 	
 	var to_idx = _find_empty_slot()
 	if to_idx == -1:
 		return false
 	
-	from_slot.count -= count
-	_slots[to_idx] = {"item_id": from_slot.item_id, "count": count, "durability": from_slot.durability}
+	from_slot["count"] = from_slot.get("count", 0) - count
+	_slots[to_idx] = {"item_id": from_slot.get("item_id", ""), "count": count, "durability": from_slot.get("durability", 0)}
 	
-	inventory_changed.emit(from_idx, from_slot.item_id, from_slot.count)
-	inventory_changed.emit(to_idx, from_slot.item_id, count)
+	inventory_changed.emit(from_idx, from_slot.get("item_id", ""), from_slot.get("count", 0))
+	inventory_changed.emit(to_idx, from_slot.get("item_id", ""), count)
 	return true
 
 ## 丢弃物品
@@ -198,18 +237,18 @@ func use_item(slot_index: int, target: Node = null) -> Dictionary:
 		return {"success": false, "reason": "无效格子"}
 	
 	var slot = _slots[slot_index]
-	if slot.item_id.is_empty():
+	if slot.get("item_id", "").is_empty():
 		return {"success": false, "reason": "没有物品"}
 	
-	var item_data = ItemDatabase.get_item(slot.item_id)
-	if not item_data.get("usable", false):
+	var item_data = ItemDatabase.get_item(slot.get("item_id", ""))
+	if not item_data.get("usable") or false:
 		return {"success": false, "reason": "该物品无法使用"}
 	
 	var effects = item_data.get("use_effect", {})
 	
 	# 消耗物品
-	remove_item(slot.item_id, 1)
-	item_used.emit(slot.item_id, slot_index)
+	remove_item(slot.get("item_id", ""), 1)
+	item_used.emit(slot.get("item_id", ""), slot_index)
 	
 	return {"success": true, "effects": effects}
 
@@ -219,18 +258,36 @@ func use_durability(slot_index: int, amount: int = 1) -> void:
 		return
 	
 	var slot = _slots[slot_index]
-	if slot.durability <= 0:
+	var item_id = slot.get("item_id", "")
+	if item_id.is_empty():
 		return
 	
-	slot.durability -= amount
-	durability_changed.emit(slot_index, slot.durability, 
-		ItemDatabase.get_item(slot.item_id).get("durability", 1))
+	# 🆕 魂器走魂器耐久系统
+	if is_soul_marked(item_id):
+		var sfs = get_node_or_null("/root/SoulForgeSystem")
+		if sfs:
+			sfs.use_soul_durability(slot_index, amount * 10.0)  # 换算为魂器耐久消耗
+		return
 	
-	# 耐久耗尽，工具损坏
-	if slot.durability <= 0:
-		_slots[slot_index] = {"item_id": "", "count": 0, "durability": -1}
-		inventory_changed.emit(slot_index, "", 0)
-		print("💔 工具损坏！")
+	# 普通耐久逻辑
+	if slot.get("durability", 0) <= 0:
+		return
+	
+	slot["durability"] = slot.get("durability", 0) - amount
+	durability_changed.emit(slot_index, slot.get("durability", 0), 
+		ItemDatabase.get_item(item_id).get("durability") or 1)
+	
+	# 耐久耗尽 → 触发老伙计判定
+	if slot.get("durability", 0) <= 0:
+		var sfs = get_node_or_null("/root/SoulForgeSystem")
+		if sfs and sfs.has_method("on_durability_depleted"):
+			sfs.on_durability_depleted(slot_index, item_id)
+		
+		# 正常销毁（SoulForgeSystem 如果觉醒会恢复物品，所以先执行销毁前检测）
+		if not is_soul_marked(item_id):
+			_slots[slot_index] = {"item_id": "", "count": 0, "durability": -1}
+			inventory_changed.emit(slot_index, "", 0)
+			print("💔 工具损坏！")
 
 # ==================== 装备系统 ====================
 
@@ -240,11 +297,11 @@ func equip_item(slot_index: int) -> bool:
 		return false
 	
 	var slot = _slots[slot_index]
-	var item_data = ItemDatabase.get_item(slot.item_id)
-	if not item_data.get("equippable", false):
+	var item_data = ItemDatabase.get_item(slot.get("item_id", ""))
+	if not item_data.get("equippable") or false:
 		return false
 	
-	var equip_slot = item_data.get("slot", "")
+	var equip_slot = item_data.get("slot") or ""
 	if equip_slot.is_empty():
 		return false
 	
@@ -254,11 +311,11 @@ func equip_item(slot_index: int) -> bool:
 		add_item(old_item, 1)
 	
 	# 装备新物品
-	_equipment[equip_slot] = slot.item_id
-	remove_item(slot.item_id, 1)
+	_equipment[equip_slot] = slot.get("item_id", "")
+	remove_item(slot.get("item_id", ""), 1)
 	
-	equipment_changed.emit(equip_slot, slot.item_id)
-	print("⚔️ 装备 %s 到 %s 槽" % [item_data.name, equip_slot])
+	equipment_changed.emit(equip_slot, slot.get("item_id", ""))
+	print("⚔️ 装备 %s 到 %s 槽" % [item_data.get("name", "?"), equip_slot])
 	return true
 
 ## 卸下装备
@@ -293,18 +350,18 @@ func get_equipment_stats() -> Dictionary:
 func get_movement_speed_mult() -> float:
 	for slot in _equipment.values():
 		var item_data = ItemDatabase.get_item(slot)
-		var mult = item_data.get("speed_mult", 0.0)
+		var mult = item_data.get("speed_mult") or 0.0
 		if mult > 0:
 			return mult
 	return 1.0
 
 ## 获取当前装备武器
 func get_equipped_weapon() -> String:
-	return _equipment.get("weapon", "")  # 🔧 L3: 用小写 key
+	return _equipment.get("weapon") or ""  # 🔧 L3: 用小写 key
 
 ## 获取当前装备工具
 func get_equipped_tool() -> String:
-	return _equipment.get("tool", "")  # 🔧 L3: 用小写 key
+	return _equipment.get("tool") or ""  # 🔧 L3: 用小写 key
 
 # ==================== 背包扩容 ====================
 
@@ -331,6 +388,84 @@ func _find_empty_slot() -> int:
 			return i
 	return -1
 
+# ==================== 🎒 背包栏 / 魂器 ====================
+
+## 是否有背包装备（决定背包栏 8+ 是否可用）
+func has_backpack_equipped() -> bool:
+	return _equipment.has("backpack") and not _equipment["backpack"].is_empty()
+
+## 标记某物品为魂器（死亡保留）
+func set_soul_marked(item_id: String, marked: bool = true) -> void:
+	if marked:
+		_soul_marked_items[item_id] = true
+	else:
+		_soul_marked_items.erase(item_id)
+	print("🔮 魂器标记 %s → %s" % [item_id, marked])
+
+## 检查某物品是否为魂器
+func is_soul_marked(item_id: String) -> bool:
+	return _soul_marked_items.get(item_id, false)
+
+## 装备的背包是否有魂器印记（背包栏全部保留）
+func is_backpack_soul_marked() -> bool:
+	return _backpack_soul_marked
+
+## 设置背包魂器状态
+func set_backpack_soul_marked(marked: bool) -> void:
+	_backpack_soul_marked = marked
+	print("🎒 背包魂器状态 → %s" % marked)
+
+## 同步背包魂器状态（检测装备的背包物品是否有 soul_mark 属性）
+func sync_backpack_soul_mark() -> void:
+	if not has_backpack_equipped():
+		_backpack_soul_marked = false
+		return
+	var bp_id = _equipment.get("backpack") or ""
+	if bp_id.is_empty():
+		_backpack_soul_marked = false
+		return
+	# 检查背包物品本身的标签
+	var item_data = ItemDatabase.get_item(bp_id)
+	_backpack_soul_marked = item_data.get("soul_marked") or false or _soul_marked_items.get(bp_id, false)
+
+## 获取死亡时应该掉落的物品列表（非魂器物品）
+## 返回 [{item_id, count, slot}]，同时从背包移除
+func collect_death_drop_items() -> Array[Dictionary]:
+	var drops: Array[Dictionary] = []
+	
+	# 检查背包是否魂器
+	var bp_protected = is_backpack_soul_marked()
+	
+	for i in range(_slots.size()):
+		var slot = _slots[i]
+		if slot.get("item_id", "").is_empty() or slot.get("count", 0) <= 0:
+			continue
+		
+		var should_keep = false
+		
+		if i < PERSONAL_SLOT_COUNT:
+			# 👤 人物物品栏：逐个检查魂器标记
+			should_keep = is_soul_marked(slot.get("item_id", ""))
+		else:
+			# 🎒 背包物品栏：如果背包是魂器则全部保留
+			should_keep = bp_protected or is_soul_marked(slot.get("item_id", ""))
+		
+		if not should_keep:
+			drops.append({
+				"slot": i,
+				"item_id": slot.get("item_id", ""),
+				"count": slot.get("count", 0),
+				"durability": slot.get("durability", 0)
+			})
+	
+	# 从背包移除掉落物品
+	for drop in drops:
+		_slots[drop.slot] = {"item_id": "", "count": 0, "durability": -1}
+		inventory_changed.emit(drop.slot, "", 0)
+		item_removed.emit(drop.item_id, drop.count)
+	
+	return drops
+
 # ==================== 查询 ====================
 
 ## 获取背包所有物品（非空格）
@@ -356,7 +491,7 @@ func get_equipment() -> Dictionary:
 func get_used_slot_count() -> int:
 	var count = 0
 	for slot in _slots:
-		if not slot.item_id.is_empty() and slot.count > 0:
+		if not slot.get("item_id", "").is_empty() and slot.get("count", 0) > 0:
 			count += 1
 	return count
 
@@ -370,15 +505,56 @@ func get_save_data() -> Dictionary:
 		"bag_slots": bag_slots,
 		"slots": _slots,
 		"equipment": _equipment,
+		"soul_marked_items": _soul_marked_items,
+		"backpack_soul_marked": _backpack_soul_marked,
 	}
 
 func load_save_data(data: Dictionary) -> void:
-	bag_slots = data.get("bag_slots", 24)
+	bag_slots = data.get("bag_slots") or 24
 	_slots = []
 	_resize_slots(bag_slots)
 	
-	var saved_slots = data.get("slots", [])
+	var saved_slots = data.get("slots") or []
 	for i in range(min(saved_slots.size(), _slots.size())):
 		_slots[i] = saved_slots[i].duplicate()
 	
 	_equipment = data.get("equipment", {})
+	_soul_marked_items = data.get("soul_marked_items", {})
+	_backpack_soul_marked = data.get("backpack_soul_marked") or false
+
+# ==================== 📖 图鉴/描述接口 ====================
+
+## 获取物品描述（自动触发图鉴发现）
+func get_item_description(item_id: String) -> String:
+	var item_data = ItemDatabase.get_item(item_id)
+	if item_data.is_empty():
+		return "未知物品"
+	
+	# 自动记录到图鉴
+	var cyc = get_node("/root/GameManager/CyclopediaSystem") if has_node("/root/GameManager/CyclopediaSystem") else null
+	if cyc:
+		cyc.discover_entry(CyclopediaSystem.Category.ITEM, item_id)
+	
+	return item_data.get("desc") or "暂无描述"
+
+## 获取物品详情（含品质、分类等）
+func get_item_detail(item_id: String) -> Dictionary:
+	var item_data = ItemDatabase.get_item(item_id)
+	if item_data.is_empty():
+		return {}
+	
+	var cyc = get_node("/root/GameManager/CyclopediaSystem") if has_node("/root/GameManager/CyclopediaSystem") else null
+	if cyc:
+		cyc.discover_entry(CyclopediaSystem.Category.ITEM, item_id)
+	
+	return {
+		"id": item_id,
+		"name": item_data.get("name") or "?",
+		"category": ItemDatabase.get_item_category(item_id),
+		"quality": ItemDatabase.get_item_quality(item_id),
+		"desc": item_data.get("desc") or "暂无描述",
+		"icon": item_data.get("icon") or "",
+		"stackable": item_data.get("stackable") or false,
+		"max_stack": item_data.get("max_stack") or 1,
+		"sell_price": item_data.get("sell_price") or 0,
+	}

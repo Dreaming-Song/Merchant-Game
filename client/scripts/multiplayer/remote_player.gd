@@ -10,7 +10,7 @@ signal interacted(remote_player: Node)  # 本地玩家与此玩家交互
 
 # ==================== 显示 ====================
 @onready var name_label: Label3D = $NameLabel
-@onready var hp_bar: ProgressBar3D = $HpBar
+@onready var hp_bar: Node3D = $HpBar
 @onready var chat_bubble: Label3D = $ChatBubble
 
 # ==================== 同步数据 ====================
@@ -46,22 +46,22 @@ func _process(delta: float) -> void:
 func update_state(state: Dictionary) -> void:
 	"""从 NetworkManager 接收状态更新"""
 	target_position = Vector3(
-		state.get("x", global_position.x),
-		state.get("y", global_position.y),
-		state.get("z", global_position.z)
+		state.get("x") or global_position.x,
+		state.get("y") or global_position.y,
+		state.get("z") or global_position.z
 	)
 	target_rotation = Vector3(
-		state.get("rot_x", 0),
-		state.get("rot_y", 0),
+		state.get("rot_x") or 0,
+		state.get("rot_y") or 0,
 		0
 	)
 	
-	current_hp = state.get("hp", current_hp)
-	max_hp = state.get("max_hp", max_hp)
-	current_mp = state.get("mp", current_mp)
-	max_hp = state.get("max_mp", max_hp)
-	is_flying = state.get("is_flying", false)
-	is_in_water = state.get("is_in_water", false)
+	current_hp = state.get("hp") or current_hp
+	max_hp = state.get("max_hp") or max_hp
+	current_mp = state.get("mp") or current_mp
+	max_hp = state.get("max_mp") or max_hp
+	is_flying = state.get("is_flying") or false
+	is_in_water = state.get("is_in_water") or false
 	
 	_update_hp_bar()
 

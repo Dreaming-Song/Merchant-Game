@@ -1,0 +1,674 @@
+extends Node
+## 🗡️ 战斗系统 — 塞尔达风格剑技+法术核心（丰富版）
+##
+## 挂在 Player 身上，接管所有战斗输入逻辑。
+## 通过 SkillManager 释放技能，支持剑意/元素共鸣等流派机制。
+
+class_name CombatSystem
+
+# ==================== 类型预加载 ====================
+const _StaminaType = preload("res://scripts/combat/stamina_system.gd")
+const _SkillType = preload("res://scripts/combat/skill_manager.gd")
+const _GongfaType = preload("res://scripts/combat/gongfa_system.gd")
+const _DamageType = preload("res://scripts/combat/damage_calculator.gd")
+
+# ==================== 连击配置 ====================
+const LIGHT_COMBO: Array[Dictionary] = [
+	{"name": "横斩", "damage_mult": 0.8, "range": 2.5, "windup": 0.1, "recovery": 0.2},
+	{"name": "上挑", "damage_mult": 1.0, "range": 2.5, "windup": 0.08, "recovery": 0.15},
+	{"name": "下劈", "damage_mult": 1.3, "range": 2.8, "windup": 0.15, "recovery": 0.3},
+	{"name": "终结·剑气纵横", "damage_mult": 2.0, "range": 4.0, "windup": 0.2, "recovery": 0.4},
+]
+
+const HEAVY_CHARGE_LEVELS: Array[Dictionary] = [
+	{"name": "蓄力·斩", "damage_mult": 1.5, "min_charge": 0.3, "cost_stamina": 15},
+	{"name": "蓄力·破", "damage_mult": 2.5, "min_charge": 0.8, "cost_stamina": 25},
+	{"name": "蓄力·灭", "damage_mult": 4.0, "min_charge": 1.5, "cost_stamina": 40},
+]
+
+# ==================== 强化配置 ====================
+const EMPOWER_DODGE_MULT: float = 1.6
+const EMPOWER_PARRY_MULT: float = 2.2
+const EMPOWER_DURATION: float = 5.0
+
+# ==================== 引用 ====================
+var player: CharacterBody3D = null
+var stamina = null  # StaminaSystem
+var camera: Camera3D = null
+
+# SkillManager 引用
+var _skill_manager = null  # SkillManager
+
+# ==================== 战斗状态 ====================
+var current_weapon: String = "sword"
+
+# --- 连击 ---
+var combo_step: int = 0
+var combo_timer: float = 0.0
+const COMBO_WINDOW: float = 0.6
+var is_attacking: bool = false
+var attack_cd: float = 0.0
+
+# --- 蓄力 ---
+var is_charging: bool = false
+var charge_time: float = 0.0
+var is_heavy_ready: bool = false
+var spin_attacking: bool = false
+
+# --- 锁定 ---
+var locked_target: Node = null
+var lock_on_distance: float = 20.0
+var lock_off_distance: float = 30.0
+
+# --- 闪避 ---
+var is_dodging: bool = false
+var dodge_dir: Vector3 = Vector3.ZERO
+var dodge_speed: float = 12.0
+var dodge_duration: float = 0.3
+var dodge_timer: float = 0.0
+var dodge_invincible: bool = false
+var _dodge_perfect_flag: bool = false
+
+# --- 格挡 ---
+var is_blocking: bool = false
+var parry_window: float = 0.2
+var block_damage_reduction: float = 0.6
+var parry_timer: float = 0.0
+
+# --- 施法 ---
+var is_casting: bool = false
+var cast_time: float = 0.0
+var selected_spell: String = ""
+var casting_complete: bool = false
+
+# ==================== ⚡ 强化系统 ====================
+var is_empowered: bool = false
+var empower_mult: float = 1.0
+var empower_source: String = ""
+var empower_timer: float = 0.0
+signal empower_changed(active: bool, mult: float, source: String)
+
+# ==================== 初始化 ====================
+
+func _init(player_node: CharacterBody3D) -> void:
+	player = player_node
+	camera = player.get_node("Camera3D") if player.has_node("Camera3D") else null
+	stamina = _StaminaType.new()
+	add_child(stamina)
+
+func _ready() -> void:
+	name = "CombatSystem"
+	# 找 SkillManager
+	_skill_manager = get_node("/root/GameManager/SkillManager") if has_node("/root/GameManager/SkillManager") else null
+	if not _skill_manager:
+		_skill_manager = player.get_node("SkillManager") if player.has_node("SkillManager") else null
+
+func _process(delta: float) -> void:
+	# 连击窗口
+	if combo_step > 0:
+		combo_timer -= delta
+		if combo_timer <= 0:
+			combo_step = 0
+			is_attacking = false
+	
+	if attack_cd > 0:
+		attack_cd -= delta
+	
+	_update_lock_on(delta)
+	_update_dodge(delta)
+	
+	# ⚡ 强化倒计时
+	if is_empowered:
+		empower_timer -= delta
+		if empower_timer <= 0:
+			_clear_empower()
+
+func _physics_process(delta: float) -> void:
+	if locked_target and is_instance_valid(locked_target):
+		_handle_lock_on_movement(delta)
+
+# ==================== 🗡️ 轻攻击连击 ====================
+
+func try_light_attack() -> bool:
+	"""轻攻击：连击递进"""
+	if attack_cd > 0 or is_dodging or is_blocking or is_casting:
+		return false
+	if stamina and not stamina.has_stamina(5.0):
+		return false
+	
+	combo_step = (combo_step + 1) % (LIGHT_COMBO.size() + 1)
+	if combo_step >= LIGHT_COMBO.size():
+		combo_step = 0
+	
+	var step_data = LIGHT_COMBO[combo_step].duplicate()
+	is_attacking = true
+	attack_cd = step_data.get("windup", 0.0) + step_data.get("recovery", 0.0)
+	combo_timer = COMBO_WINDOW
+	
+	if stamina:
+		stamina.try_consume(5.0 * (1.0 + combo_step * 0.5))
+	
+	# ⚡ 强化消耗
+	var was_empowered = is_empowered
+	var empower_src = empower_source
+	if was_empowered:
+		step_data["damage_mult"] = step_data.get("damage_mult", 1.0) * empower_mult
+		_clear_empower()
+	
+	# 🗡️ 剑道连击自动+1剑意
+	if current_weapon == "sword" and _skill_manager:
+		_skill_manager.add_sword_intent(1)
+	
+	print("🗡️ %s！连击第 %d 段%s" % [
+		step_data.get("name", "攻击"), combo_step + 1,
+		" ⚡强化!" if was_empowered else ""
+	])
+	
+	# 📜 功法触发：连击收尾（最终段）
+	if combo_step == LIGHT_COMBO.size() - 1:  # 终结技
+		var gf = _get_gongfa_system()
+		if gf:
+			gf.try_trigger("on_combo_finish", {"combo_step": combo_step})
+	
+	_execute_attack(step_data, was_empowered, empower_src)
+	return true
+
+func _execute_attack(step_data: Dictionary, is_empowered_attack: bool = false, empower_src: String = "") -> void:
+	var target = _find_target_in_arc(step_data.get("range", 5.0), 60.0)
+	if not target:
+		return
+	
+	var direction = (target.global_position - player.global_position).normalized()
+	direction.y = 0
+	player.global_position += direction * 0.3
+	
+	var stats = _get_player_combat_stats()
+	if is_empowered_attack:
+		stats["attack"] = int(stats.get("attack", 10) * 1.3)
+		stats["crit_rate"] = min(stats.get("crit_rate", 0.0) + 0.25, 1.0)
+	
+	var defender_stats = _get_target_stats(target)
+	var damage_result = _DamageType.calculate_damage(stats, defender_stats, step_data)
+	
+	if target.has_method("take_damage"):
+		target.take_damage(damage_result.get("damage", 0))
+	
+	var extra = ""
+	if is_empowered_attack:
+		extra = " ⚡强化"
+		match empower_src:
+			"dodge": extra += "(完美闪避)"
+			"parry": extra += "(完美弹反)"
+	if damage_result.get("is_crit", false):
+		extra += " 💥暴击!"
+	
+	print("  命中！伤害: %d%s" % [damage_result.get("damage", 0), extra])
+
+# ==================== ⚡ 蓄力重击 ====================
+
+func start_heavy_charge() -> void:
+	if is_attacking or is_dodging or is_casting:
+		return
+	is_charging = true
+	charge_time = 0.0
+	is_heavy_ready = false
+
+func update_charge(delta: float) -> void:
+	if not is_charging:
+		return
+	charge_time += delta
+	is_heavy_ready = _get_charge_level() >= 0
+	
+	var input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	if input_dir.length() > 0.5 and charge_time > 0.5:
+		spin_attacking = true
+
+func release_heavy() -> bool:
+	if not is_charging:
+		return false
+	is_charging = false
+	spin_attacking = false
+	if not is_heavy_ready:
+		return false
+	var level = _get_charge_level()
+	if level < 0:
+		return false
+	var data = HEAVY_CHARGE_LEVELS[level].duplicate()
+	if stamina and not stamina.try_consume(data.get("cost_stamina", 0)):
+		return false
+	
+	var was_empowered = is_empowered
+	var empower_src = empower_source
+	if was_empowered:
+		data["damage_mult"] = data.get("damage_mult", 1.0) * empower_mult
+		_clear_empower()
+	
+	# 🗡️ 蓄力重击+2剑意
+	if current_weapon == "sword" and _skill_manager:
+		_skill_manager.add_sword_intent(2)
+	
+	print("⚡ %s！（蓄力等级 %d）%s" % [data.get("name", "攻击"), level + 1, "⚡强化!" if was_empowered else ""])
+	_execute_attack(data, was_empowered, empower_src)
+	attack_cd = 0.4
+	is_attacking = true
+	return true
+
+func cancel_charge() -> void:
+	is_charging = false
+	spin_attacking = false
+	is_heavy_ready = false
+	charge_time = 0.0
+
+func _get_charge_level() -> int:
+	for i in range(HEAVY_CHARGE_LEVELS.size() - 1, -1, -1):
+		if charge_time >= HEAVY_CHARGE_LEVELS[i].min_charge:
+			return i
+	return -1
+
+# ==================== 🎯 锁定系统 ====================
+
+func try_lock_on() -> void:
+	if locked_target and is_instance_valid(locked_target):
+		locked_target = null
+		print("🎯 锁定解除")
+		return
+	var closest = _find_closest_enemy(lock_on_distance)
+	if closest:
+		locked_target = closest
+		print("🎯 锁定 %s" % locked_target.name)
+
+func _update_lock_on(_delta: float) -> void:
+	if not locked_target or not is_instance_valid(locked_target):
+		locked_target = null
+		return
+	if player.global_position.distance_to(locked_target.global_position) > lock_off_distance:
+		locked_target = null
+
+func _handle_lock_on_movement(_delta: float) -> void:
+	if not locked_target or not is_instance_valid(locked_target):
+		return
+	var input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	if input_dir.length() < 0.1:
+		return
+	var to_target = (locked_target.global_position - player.global_position).normalized()
+	var cam_forward = -camera.global_transform.basis.z if camera else Vector3.FORWARD
+	cam_forward.y = 0
+	cam_forward = cam_forward.normalized()
+	var cam_right = Vector3(-cam_forward.z, 0, cam_forward.x)
+	var move = (cam_right * input_dir.x + cam_forward * input_dir.y).normalized() * player.walk_speed
+	player.global_transform.basis = Basis.looking_at(to_target, Vector3.UP)
+
+# ==================== 💨 闪避系统 ====================
+
+func try_dodge(direction: Vector2) -> bool:
+	if is_dodging or is_attacking or is_charging or is_blocking:
+		return false
+	if stamina and not stamina.try_consume(_StaminaType.DODGE_COST):
+		return false
+	
+	var dodge_3d = Vector3.ZERO
+	if locked_target and is_instance_valid(locked_target):
+		var to_target = (locked_target.global_position - player.global_position).normalized()
+		var cam_right = Vector3(-to_target.z, 0, to_target.x)
+		if direction.y < -0.5:       dodge_3d = -to_target
+		elif direction.x > 0.5:      dodge_3d = cam_right
+		elif direction.x < -0.5:     dodge_3d = -cam_right
+		else:                         dodge_3d = to_target * 0.5
+	else:
+		var forward = -camera.global_transform.basis.z if camera else Vector3.FORWARD
+		forward.y = 0; forward = forward.normalized()
+		var right = Vector3(-forward.z, 0, forward.x)
+		dodge_3d = (forward * direction.y + right * direction.x).normalized()
+	
+	if dodge_3d.length() < 0.1:
+		dodge_3d = -player.global_transform.basis.z
+	
+	dodge_3d = dodge_3d.normalized() * dodge_speed
+	is_dodging = true
+	dodge_dir = dodge_3d
+	dodge_timer = dodge_duration
+	dodge_invincible = true
+	_dodge_perfect_flag = true
+	player.velocity.y = 3.0
+	return true
+
+func _update_dodge(delta: float) -> void:
+	if not is_dodging: return
+	dodge_timer -= delta
+	if dodge_timer <= 0:
+		is_dodging = false
+		dodge_invincible = false
+		# 完美闪避判定：全程没受伤+完美标记还在
+		if _dodge_perfect_flag:
+			_apply_empower("dodge", EMPOWER_DODGE_MULT)
+			print("💫 完美闪避！下一击强化 x%.1f" % EMPOWER_DODGE_MULT)
+		_dodge_perfect_flag = false
+		return
+	if dodge_timer < dodge_duration * 0.3:
+		dodge_invincible = false
+	player.velocity.x = dodge_dir.x
+	player.velocity.z = dodge_dir.z
+	player.velocity.y = 3.0
+
+func is_invincible() -> bool:
+	return dodge_invincible
+
+# ==================== 🛡️ 格挡/弹反 ====================
+
+func try_block_start() -> void:
+	if is_attacking or is_dodging or is_casting: return
+	is_blocking = true
+	parry_timer = parry_window
+	print("🛡️ 格挡姿态")
+
+func try_block_end() -> void:
+	is_blocking = false
+	parry_timer = 0.0
+
+func try_parry() -> bool:
+	if not is_blocking: return false
+	if parry_timer > 0:
+		_apply_empower("parry", EMPOWER_PARRY_MULT)
+		print("✨ 完美弹反！下一击强化 x%.1f" % EMPOWER_PARRY_MULT)
+		return true
+	return false
+
+func handle_blocked_damage(damage: int) -> int:
+	if not is_blocking: return damage
+	return int(damage * block_damage_reduction)
+
+# ==================== ⚡ 强化系统 ====================
+
+func _apply_empower(source: String, mult: float) -> void:
+	is_empowered = true
+	empower_mult = mult
+	empower_source = source
+	empower_timer = EMPOWER_DURATION
+	empower_changed.emit(true, mult, source)
+
+func _clear_empower() -> void:
+	if not is_empowered: return
+	is_empowered = false
+	empower_mult = 1.0
+	empower_source = ""
+	empower_timer = 0.0
+	empower_changed.emit(false, 1.0, "")
+
+# ==================== ✨ 通过 SkillManager 释放技能 ====================
+
+## 主动释放一个已学习的技能
+## 配合 SkillManager 的冷却/法力/伤害计算
+func use_skill(skill_id: String, target: Node = null) -> Dictionary:
+	"""通过 SkillManager 释放技能"""
+	if not _skill_manager:
+		print("⚠️ SkillManager 未加载")
+		return {"success": false, "reason": "SkillManager 未加载"}
+	
+	# 找目标
+	if not target:
+		target = locked_target if (locked_target and is_instance_valid(locked_target)) else _find_closest_enemy(20.0)
+	
+	var result = _skill_manager.use_skill(skill_id, player, target)
+	
+	if result.get("success") or false:
+		attack_cd = 0.3
+		is_attacking = true
+		
+		# 技能特效
+		var data = result.get("data", {})
+		_play_skill_vfx(skill_id, data, target)
+		
+		# ============ 📜 功法触发：技能释放 ============
+		var gf = _get_gongfa_system()
+		if gf:
+			var triggers = gf.try_trigger("on_skill_cast", {"skill_id": skill_id, "target": target})
+			for t in triggers:
+				_handle_gongfa_trigger(t, target)
+		
+		# 特殊效果处理
+		var effects = data.get("effects", {})
+		if effects.get("dash") or false and target:
+			# 人剑合一突进
+			var dir = (target.global_position - player.global_position).normalized()
+			player.global_position += dir * min(4.0, player.global_position.distance_to(target.global_position))
+		
+		if effects.get("teleport") or false:
+			# 雷闪瞬移
+			var tp_pos = target.global_position if target else player.global_position + Vector3(0, 1, -3)
+			player.global_position = tp_pos + Vector3(0, 0.5, 0)
+		
+		if effects.get("teleport_back") or false and target:
+			# 暗影步绕背
+			var behind = target.global_position + target.global_transform.basis.z * 2.0
+			player.global_position = behind
+		
+		if target and target.has_method("take_damage") and result.has("damage"):
+			target.take_damage(result.get("damage", 0))
+	
+	return result
+
+## 快捷键释放快捷栏技能
+func use_quick_skill(slot: int) -> Dictionary:
+	"""释放快捷栏对应技能（根据当前武器流派自动选择）"""
+	var skill_ids = _SkillType.get_school_skill_ids(_get_school_name(current_weapon))
+	
+	# 跳过被动技能
+	var active_skills = []
+	for sid in skill_ids:
+		var data = _SkillType.get_skill_data(sid)
+		if data.get("type") != "passive":
+			active_skills.append(sid)
+	
+	if slot < 0 or slot >= active_skills.size():
+		return {"success": false, "reason": "无效快捷栏"}
+	
+	return use_skill(active_skills[slot])
+
+func _get_school_name(weapon: String) -> String:
+	match weapon:
+		"sword": return "剑道"
+		"spell": return "法术"
+		"body": return "体术"
+		"talisman": return "符道"
+	return "剑道"
+
+# ==================== ✨ 法术蓄力施放 ====================
+
+func select_spell(spell_id: String) -> void:
+	selected_spell = spell_id
+	print("✨ 选中法术: %s" % spell_id)
+
+func start_casting() -> void:
+	if is_attacking or is_dodging: return
+	if not selected_spell or selected_spell.is_empty(): return
+	is_casting = true
+	cast_time = 0.0
+	casting_complete = false
+
+func update_casting(delta: float) -> void:
+	if not is_casting: return
+	cast_time += delta
+	var data = _SkillType.get_skill_data(selected_spell)
+	if not data:
+		cancel_casting()
+		return
+	if cast_time >= 2.0:
+		casting_complete = true
+
+func release_cast() -> bool:
+	if not is_casting or not selected_spell: return false
+	is_casting = false
+	if not casting_complete and cast_time < 0.2:
+		print("⚠️ 施法被打断")
+		return false
+	return use_skill(selected_spell).get("success") or false
+
+func cancel_casting() -> void:
+	is_casting = false
+	casting_complete = false
+	cast_time = 0.0
+
+# ==================== 🎮 流派切换 ====================
+
+func switch_weapon(weapon: String) -> void:
+	if current_weapon == weapon: return
+	current_weapon = weapon
+	cancel_charge()
+	cancel_casting()
+	combo_step = 0
+	is_attacking = false
+	match weapon:
+		"sword": print("🗡️ 切换至剑道")
+		"spell": print("✨ 切换至法术")
+		"body": print("👊 切换至体术")
+		"talisman": print("📜 切换至符箓")
+
+# ==================== 🔍 辅助方法 ====================
+
+func _find_closest_enemy(max_dist: float) -> Node:
+	var enemies = get_tree().get_nodes_in_group("enemy")
+	var closest: Node = null
+	var min_dist = max_dist
+	for e in enemies:
+		if not is_instance_valid(e): continue
+		if e.has_method("is_alive") and not e.is_alive: continue
+		var dist = player.global_position.distance_to(e.global_position)
+		if dist < min_dist:
+			min_dist = dist
+			closest = e
+	return closest
+
+func _find_target_in_arc(radius: float, angle_deg: float) -> Node:
+	if locked_target and is_instance_valid(locked_target):
+		if player.global_position.distance_to(locked_target.global_position) <= radius:
+			return locked_target
+	var enemies = get_tree().get_nodes_in_group("enemy")
+	for e in enemies:
+		if not is_instance_valid(e): continue
+		var dir_to = e.global_position - player.global_position
+		var dist = dir_to.length()
+		if dist > radius: continue
+		dir_to = dir_to.normalized()
+		var forward = -player.global_transform.basis.z
+		if rad_to_deg(forward.angle_to(dir_to)) <= angle_deg / 2:
+			return e
+	return null
+
+func _get_player_combat_stats() -> Dictionary:
+	return {"attack": 10 + combo_step * 2, "crit_rate": 0.05, "crit_damage": 1.5, "damage_bonus": 0}
+
+func _get_target_stats(target: Node) -> Dictionary:
+	var defense = target.get("defense") if target.has("defense") else 5
+	var reduction = target.get("damage_reduction") if target.has("damage_reduction") else 0.0
+	return {"defense": defense, "damage_reduction": reduction}
+
+func _play_skill_vfx(skill_id: String, data: Dictionary, target: Node) -> void:
+	"""播放技能特效"""
+	var vfx_node = player.get_node("SkillVFX") if player.has_node("SkillVFX") else null
+	if not vfx_node or not vfx_node.has_method("play_skill_effect"):
+		return
+	var target_pos = target.global_position if target else player.global_position + player.global_transform.basis.z * -5.0
+	var dir = (target_pos - player.global_position).normalized() if target else -player.global_transform.basis.z
+	vfx_node.play_skill_effect(skill_id, player.global_position, dir, target_pos)
+
+# ==================== 📜 功法联动 ====================
+
+var _gongfa_system = null  # GongfaSystem
+
+func _get_gongfa_system():  # -> GongfaSystem
+	if not _gongfa_system:
+		_gongfa_system = get_node("/root/GameManager/GongfaSystem") if has_node("/root/GameManager/GongfaSystem") else null
+	return _gongfa_system
+
+func _handle_gongfa_trigger(trigger: Dictionary, target: Node) -> void:
+	"""处理功法触发效果"""
+	var effect = trigger.get("effect") or ""
+	var gongfa_name = trigger.get("gongfa_name") or "?"
+	
+	match effect:
+		"restore_mp":
+			var val = trigger.get("value") or 5
+			if _skill_manager:
+				_skill_manager.restore_mp(val)
+				print("📜 %s 回蓝 %d" % [gongfa_name, val])
+		
+		"restore_hp_mp":
+			var hp_pct = trigger.get("hp_pct") or 0.0
+			var mp = trigger.get("mp") or 0
+			if hp_pct > 0 and player.has_method("heal"):
+				player.heal(player.get("max_hp") or 100 * hp_pct)
+			if mp > 0 and _skill_manager:
+				_skill_manager.restore_mp(mp)
+		
+		"aoe_explosion":
+			var radius = trigger.get("radius") or 2.5
+			var dmg_pct = trigger.get("damage_pct") or 0.3
+			print("📜 %s 触发剑意爆发！半径 %.1f 伤害 %.0f%%" % [gongfa_name, radius, dmg_pct * 100])
+			# 触发AOE爆炸（具体实现由伤害系统处理）
+		
+		"thunder_strike":
+			var dmg_pct = trigger.get("damage_pct") or 1.0
+			print("📜 %s 触发追加雷击！%.0f%%伤害" % [gongfa_name, dmg_pct * 100])
+		
+		"chain_explosion":
+			var radius = trigger.get("radius") or 3.0
+			var dmg_pct = trigger.get("damage_pct") or 0.5
+			print("📜 %s 触发冰爆！半径 %.1f 伤害 %.0f%%" % [gongfa_name, radius, dmg_pct * 100])
+		
+		"thorn_damage":
+			var dmg_pct = trigger.get("damage_pct") or 0.15
+			print("📜 %s 反伤 %.0f%%" % [gongfa_name, dmg_pct * 100])
+		
+		"heal_pct":
+			var val = trigger.get("value") or 0.1
+			if player.has_method("heal"):
+				player.heal(player.get("max_hp") or 100 * val)
+				print("📜 %s 击杀回血 %.0f%%" % [gongfa_name, val * 100])
+		
+		"talisman_mark":
+			var dmg_pct = trigger.get("damage_pct") or 0.2
+			print("📜 %s 附加符印 %.0f%%伤害" % [gongfa_name, dmg_pct * 100])
+		
+		"random_element_proc":
+			print("📜 %s 触发随机元素效果！" % gongfa_name)
+		
+		"reset_skill":
+			var skill_id = trigger.get("skill_id") or ""
+			if not skill_id.is_empty():
+				print("📜 %s 重置技能 %s 冷却！" % [gongfa_name, skill_id])
+		
+		"execute_boost":
+			var hp_threshold = trigger.get("hp_threshold") or 0.3
+			var dmg_mult = trigger.get("damage_mult") or 2.0
+			print("📜 %s 斩杀！(阈值%.0f%% ×%.1f)" % [gongfa_name, hp_threshold*100, dmg_mult])
+		
+		"reset_skill_cooldowns":
+			var pct = trigger.get("amount_pct") or 0.3
+			print("📜 %s 击杀刷新%d%%冷却" % [gongfa_name, pct*100])
+		
+		"explosion":
+			var radius = trigger.get("radius") or 2.0
+			var dmg_pct = trigger.get("damage_pct") or 0.5
+			print("📜 %s 触发火焰爆裂！半径%.1f 伤害%.0f%%" % [gongfa_name, radius, dmg_pct*100])
+		
+		"gain_shield":
+			var pct = trigger.get("shield_pct") or 0.1
+			print("📜 %s 获得护盾！吸收%.0f%%伤害" % [gongfa_name, pct*100])
+		
+		"last_stand":
+			var duration = trigger.get("duration") or 5.0
+			var dmg_reduce = trigger.get("damage_reduce") or 0.5
+			print("📜 %s 触发【不败金身】%.1f秒内减伤%.0f%%" % [gongfa_name, duration, dmg_reduce*100])
+		
+		"damage_reduce_buff":
+			var duration = trigger.get("duration") or 2.0
+			var dmg_reduce = trigger.get("damage_reduce") or 0.3
+			print("📜 %s 闪避后减伤%.0f%%持续%.1f秒" % [gongfa_name, dmg_reduce*100, duration])
+		
+		"echo_attack":
+			var chance = trigger.get("sword_chance") or 0.5
+			print("📜 %s 触发剑歌回响！%.0f%%概率" % [gongfa_name, chance*100])
+		
+		"echo_seal":
+			var dmg_pct = trigger.get("damage_pct") or 1.0
+			print("📜 %s 触发符箓回响！%.0f%%伤害" % [gongfa_name, dmg_pct*100])

@@ -93,14 +93,16 @@ func add_ingredient(type: int, amount: int = 1) -> void:
 
 func has_ingredients(recipe: Recipe) -> bool:
 	"""检查是否有所需材料"""
-	for ing_type, count in recipe.ingredients.items():
+	for ing_type in recipe.ingredients:
+		var count = recipe.ingredients[ing_type]
 		if player_ingredients.get(ing_type, 0) < count:
 			return false
 	return true
 
 func consume_ingredients(recipe: Recipe) -> void:
 	"""消耗材料"""
-	for ing_type, count in recipe.ingredients.items():
+	for ing_type in recipe.ingredients:
+		var count = recipe.ingredients[ing_type]
 		player_ingredients[ing_type] -= count
 		if player_ingredients[ing_type] <= 0:
 			player_ingredients.erase(ing_type)
@@ -145,4 +147,4 @@ func get_save_data() -> Dictionary:
 
 func load_save_data(data: Dictionary) -> void:
 	if data.has("ingredients"):
-		player_ingredients = data.ingredients
+		player_ingredients = data.get("ingredients")

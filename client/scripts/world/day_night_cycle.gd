@@ -4,7 +4,7 @@ extends Node
 ## 用法：挂载到 World 节点
 ## 影响：DirectionalLight 角度、Sky 颜色、雾效、环境光
 
-class_name DayNightCycle
+# class_name DayNightCycle — 已通过 autoload 注册
 
 # ==================== 时间参数 ====================
 @export var full_day_duration: float = 600.0  # 一整天现实秒数（10分钟=一天）

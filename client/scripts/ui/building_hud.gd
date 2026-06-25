@@ -6,7 +6,7 @@ class_name BuildingHUD
 
 var _block_name_label: Label
 var _break_progress_bar: ProgressBar
-var _building_mode: BuildingMode = null
+var _building_mode = null  # BuildingMode
 
 func _ready() -> void:
 	# 动态创建子节点（没有 .tscn）
@@ -17,7 +17,8 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE  # 不拦截点击
 	
 	# 监听建造模式
-	var player = get_node("/root/GameManager/Player") if has_node("/root/GameManager/Player") else null
+	# 用组查找获取玩家（兼容不同场景结构）
+	var player = get_tree().get_first_node_in_group("player") if get_tree() else null
 	if player and player.has_node("BuildingMode"):
 		_building_mode = player.get_node("BuildingMode")
 		_building_mode.building_mode_toggled.connect(_on_mode_toggled)
@@ -69,7 +70,7 @@ func _process(delta: float) -> void:
 	
 	# 更新方块名
 	if _block_name_label:
-		var item_id = info.get("item_id", "")
+		var item_id = info.get("item_id") or ""
 		var name_str = "未知方块"
 		if not item_id.is_empty():
 			var db = get_node("/root/ItemDatabase") if has_node("/root/ItemDatabase") else null
@@ -81,7 +82,7 @@ func _process(delta: float) -> void:
 	
 	# 更新破坏进度
 	if _break_progress_bar:
-		var progress = info.get("break_progress", 0.0)
+		var progress = info.get("break_progress") or 0.0
 		_break_progress_bar.value = progress * 100.0
 		_break_progress_bar.visible = progress > 0.01
 

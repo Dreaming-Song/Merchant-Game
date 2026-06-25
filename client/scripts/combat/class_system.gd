@@ -231,18 +231,18 @@ static func calculate_stats(class_type: int, level: int, extra_bonus: Dictionary
 	if data.is_empty():
 		return {}
 	
-	var base = data.base_stats.duplicate()
-	var growth = data.growth
+	var base = data.get("base_stats", {}).duplicate()
+	var growth = data.get("growth", {})
 	
 	# 等级成长
 	var stats = {
-		"max_hp": base.max_hp + growth.hp_per_level * (level - 1),
-		"max_mp": base.max_mp + growth.mp_per_level * (level - 1),
-		"attack": base.attack + growth.attack_per_level * (level - 1),
-		"defense": base.defense + growth.defense_per_level * (level - 1),
-		"speed": base.speed,
-		"crit_rate": base.crit_rate,
-		"crit_damage": base.crit_damage,
+		"max_hp": base.get("max_hp", 100) + growth.get("hp_per_level", 10) * (level - 1),
+		"max_mp": base.get("max_mp", 50) + growth.get("mp_per_level", 5) * (level - 1),
+		"attack": base.get("attack", 10) + growth.get("attack_per_level", 2) * (level - 1),
+		"defense": base.get("defense", 5) + growth.get("defense_per_level", 1) * (level - 1),
+		"speed": base.get("speed", 100),
+		"crit_rate": base.get("crit_rate", 0.05),
+		"crit_damage": base.get("crit_damage", 1.5),
 		"mp_regen": base.mp_regen,
 	}
 	

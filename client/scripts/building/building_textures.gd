@@ -4,6 +4,7 @@
 
 class_name BuildingTextures
 
+const _SysType = preload("res://scripts/building/building_system.gd")
 const TEXTURE_SIZE: int = 64
 
 ## 获取某个群系下的建材纹理
@@ -35,21 +36,21 @@ static func generate(piece_type: int, biome_tag: int = 0) -> ImageTexture:
 			dark  = Color(0.7, 0.7, 0.7)
 	
 	match piece_type:
-		BuildingSystem.PieceType.WALL:
+		_SysType.PieceType.WALL:
 			_generate_wall_texture(img, light, dark, biome_tag)
-		BuildingSystem.PieceType.FLOOR:
+		_SysType.PieceType.FLOOR:
 			_generate_floor_texture(img, light, dark, biome_tag)
-		BuildingSystem.PieceType.FOUNDATION:
+		_SysType.PieceType.FOUNDATION:
 			_generate_foundation_texture(img, biome_tag)
-		BuildingSystem.PieceType.ROOF:
+		_SysType.PieceType.ROOF:
 			_generate_roof_texture(img, light, biome_tag)
-		BuildingSystem.PieceType.PILLAR:
+		_SysType.PieceType.PILLAR:
 			_generate_pillar_texture(img, biome_tag)
-		BuildingSystem.PieceType.DOOR:
+		_SysType.PieceType.DOOR:
 			_generate_door_texture(img, light, dark, biome_tag)
-		BuildingSystem.PieceType.FENCE:
+		_SysType.PieceType.FENCE:
 			_generate_fence_texture(img, biome_tag)
-		BuildingSystem.PieceType.DECORATION:
+		_SysType.PieceType.DECORATION:
 			_generate_decoration_texture(img, biome_tag)
 		_:
 			_generate_default_texture(img, biome_tag)

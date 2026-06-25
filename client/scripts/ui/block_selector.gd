@@ -11,11 +11,14 @@ class_name BlockSelector
 signal block_selected(piece_type: int, item_id: String, tier: int)
 signal selector_closed()
 
+# 类型预加载
+const _BlockSys = preload("res://scripts/building/building_system.gd")
+
 # ==================== 引用 ====================
 var _player: Node3D
 var _inventory: Node
-var _building_system: BuildingSystem
-var _building_mode: BuildingMode
+var _building_system  # BuildingSystem
+var _building_mode  # BuildingMode
 
 # ==================== 界面元素 ====================
 var _bg: ColorRect
@@ -111,7 +114,7 @@ func _create_ui() -> void:
 
 # ==================== 打开 / 关闭 ====================
 
-func open(player: Node3D, inventory: Node, building_system: BuildingSystem, building_mode: BuildingMode) -> void:
+func open(player: Node3D, inventory: Node, building_system, building_mode) -> void:
 	"""打开方块选择面板"""
 	_player = player
 	_inventory = inventory
@@ -160,7 +163,7 @@ func _build_categories() -> void:
 		for slot in _inventory.get_all_slots():
 			if slot.is_empty():
 				continue
-			var item_data = _inventory.get_item_data(slot.item_id) if _inventory.has_method("get_item_data") else null
+			var item_data = _inventory.get_item_data(slot.get("item_id", "")) if _inventory.has_method("get_item_data") else null
 			if not item_data:
 				continue
 			
@@ -168,16 +171,16 @@ func _build_categories() -> void:
 			if category != 0:  # 0 = BUILDING (from ItemDatabase)
 				continue
 			
-			var piece_type = item_data.get("piece_type", BuildingSystem.PieceType.WALL)
-			var tier = item_data.get("tier", 0)
+			var piece_type = item_data.get("piece_type") or _BlockSys.PieceType.WALL
+			var tier = item_data.get("tier") or 0
 			var tier_idx = _tier_to_category(tier)
 			
 			category_items[tier_idx].append({
 				"piece_type": piece_type,
-				"item_id": slot.item_id,
+				"item_id": slot.get("item_id", ""),
 				"tier": tier,
-				"name": item_data.get("name", slot.item_id),
-				"count": slot.count,
+				"name": item_data.get("name") or slot.get("item_id", ""),
+				"count": slot.get("count", 0),
 			})
 	
 	# 转换为分类数组
@@ -265,16 +268,16 @@ func _create_block_button(item: Dictionary) -> Button:
 	var btn = Button.new()
 	
 	# 方块名 + 数量
-	var display_name = item.get("name", "未知")
-	var count = item.get("count", 0)
+	var display_name = item.get("name") or "未知"
+	var count = item.get("count") or 0
 	btn.text = "%s\n×%d" % [display_name, count]
 	
 	btn.custom_minimum_size = Vector2(72, 72)
 	btn.size = Vector2(72, 72)
-	btn.tooltip_text = "%s (Lv.%d 放置/破坏)" % [display_name, item.get("tier", 0)]
+	btn.tooltip_text = "%s (Lv.%d 放置/破坏)" % [display_name, item.get("tier") or 0]
 	
 	# 颜色装饰
-	var cat_idx = _tier_to_category(item.get("tier", 0))
+	var cat_idx = _tier_to_category(item.get("tier") or 0)
 	if cat_idx < CATEGORY_COLORS.size():
 		btn.modulate = CATEGORY_COLORS[cat_idx] * 0.8 + Color.WHITE * 0.2
 	
@@ -286,9 +289,9 @@ func _on_block_btn_pressed(item: Dictionary) -> void:
 	"""点击方块按钮"""
 	# 通知 BuildingMode 切换方块
 	if _building_mode:
-		_building_mode.select_building(item.piece_type, item.item_id)
-		block_selected.emit(item.piece_type, item.item_id, item.tier)
-		print("🔨 选择方块: %s" % item.name)
+		_building_mode.select_building(item.get("piece_type", ""), item.get("item_id", ""))
+		block_selected.emit(item.get("piece_type", ""), item.get("item_id", ""), item.get("tier", 1))
+		print("🔨 选择方块: %s" % item.get("name", "方块"))
 	
 	# 关闭面板
 	close()
@@ -302,7 +305,7 @@ func _refresh_info() -> void:
 		var total = cat.items.size()
 		var available = 0
 		for item in cat.items:
-			available += item.get("count", 0)
+			available += item.get("count") or 0
 		_info_label.text = "分类: %s | 种类: %d | 持有方块总数: %d" % [cat.name, total, available]
 	else:
 		_info_label.text = "请选择方块类型"

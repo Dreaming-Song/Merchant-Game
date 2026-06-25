@@ -18,7 +18,7 @@ enum BuffType {
 }
 
 # ==================== Buff 数据结构 ====================
-struct BuffInstance:
+class BuffInstance:
 	var id: String               # 唯一 ID
 	var name: String
 	var type: BuffType
@@ -181,7 +181,7 @@ func _remove_buff(buff_id: String) -> void:
 	buff_expired.emit(buff_id, name)
 
 func _process_tick(buff: BuffInstance) -> void:
-	var value = buff.effects.get("tick_damage", 0) * buff.stacks
+	var value = buff.effects.get("tick_damage") or 0 * buff.stacks
 	if buff.type == BuffType.DOT:
 		# 对持有者造成伤害
 		if _owner and _owner.has_method("take_damage"):

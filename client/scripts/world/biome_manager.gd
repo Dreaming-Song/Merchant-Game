@@ -8,7 +8,7 @@ extends Node
 ##   - shallow_ocean（浅海/沙滩过渡带）
 ##   - deep_ocean（深海）
 
-class_name BiomeManager
+# class_name BiomeManager — 已通过 autoload 注册
 
 # ==================== 群系标记 ====================
 enum BiomeTag {
@@ -21,25 +21,25 @@ enum BiomeTag {
 }
 
 # ==================== 数据结构 ====================
-struct TerrainProfile:
+class TerrainProfile:
 	var base_height: float
 	var height_amplitude: float
 	var roughness: float
 	var water_level: float
 	var water_chance: float
 
-struct TreeType:
+class TreeType:
 	var name: String
 	var scene: String
 	var density: float
 	var min_height: float
 	var max_height: float
 
-struct TreeDistribution:
-	var tree_types: Array[TreeType]
+class TreeDistribution:
+	var tree_types: Array[TreeType] = []
 	var total_density: float
 
-struct BiomeData:
+class BiomeData:
 	var name: String
 	var tag: BiomeTag
 	var description: String
@@ -59,12 +59,16 @@ struct BiomeData:
 	
 	var trees: TreeDistribution
 	
-	var spawn_pool: Array[String]
-	var special_resources: Array[String]
+	var spawn_pool: Array[String] = []
+	var special_resources: Array[String] = []
 	
-	var building_materials: Array[String]
+	var building_materials: Array[String] = []
 	
-	var mob_spawns: Array[Dictionary]
+	var mob_spawns: Array[Dictionary] = []
+	
+	func _init():
+		# 注意：不能使用 Array[String]() 语法，改用空数组 + 后续类型推导
+		pass
 	var danger_level: float
 	
 	var wind_strength: float
@@ -313,17 +317,17 @@ func _make_biome(d: Dictionary) -> BiomeData:
 	b.ground_color = d.get("ground", Color.GRAY)
 	b.fog_color = d.get("fog", Color.GRAY)
 	b.fog_density = d.get("fog_d", 0.1)
-	b.ambient_color = d.get("ambient", Color.GRAY)
-	b.sky_tint = d.get("sky", Color.GRAY)
-	b.vegetation_density = d.get("veg", 0.5)
-	b.grass_color = d.get("grass_c", Color.GREEN)
-	b.grass_height = d.get("grass_h", 0.3)
-	b.danger_level = d.get("danger", 0.0)
-	b.wind_strength = d.get("wind", 0.3)
-	b.particle_effect = d.get("particle", "")
-	b.music_track = d.get("music", "")
+	b.ambient_color = d.get("ambient") if d.get("ambient") is Color else Color.GRAY
+	b.sky_tint = d.get("sky") if d.get("sky") is Color else Color.GRAY
+	b.vegetation_density = d.get("veg") if typeof(d.get("veg")) in [TYPE_FLOAT, TYPE_INT] else 0.5
+	b.grass_color = d.get("grass_c") if d.get("grass_c") is Color else Color.GREEN
+	b.grass_height = d.get("grass_h") if typeof(d.get("grass_h")) in [TYPE_FLOAT, TYPE_INT] else 0.3
+	b.danger_level = d.get("danger") if typeof(d.get("danger")) in [TYPE_FLOAT, TYPE_INT] else 0.0
+	b.wind_strength = d.get("wind") if typeof(d.get("wind")) in [TYPE_FLOAT, TYPE_INT] else 0.3
+	b.particle_effect = d.get("particle") if d.get("particle") is String else ""
+	b.music_track = d.get("music") if d.get("music") is String else ""
 	
-	var tp = d.get("terrain", [0, 1, 0.3, -1, 0])
+	var tp = d.get("terrain") if d.get("terrain") is Array else [0, 1, 0.3, -1, 0]
 	b.terrain = TerrainProfile.new()
 	b.terrain.base_height = tp[0]
 	b.terrain.height_amplitude = tp[1]
@@ -334,7 +338,7 @@ func _make_biome(d: Dictionary) -> BiomeData:
 	var tr = d.get("trees", [0.3, []])
 	b.trees = TreeDistribution.new()
 	b.trees.total_density = tr[0]
-	b.trees.tree_types = []
+	# tree_types 已在 TreeDistribution 类中初始化为空 Array[TreeType]
 	for tt in tr[1]:
 		var t = TreeType.new()
 		t.name = tt[0]
@@ -344,13 +348,27 @@ func _make_biome(d: Dictionary) -> BiomeData:
 		t.max_height = tt[4]
 		b.trees.tree_types.append(t)
 	
-	b.spawn_pool = d.get("spawn", [])
-	b.special_resources = d.get("special", [])
-	b.building_materials = d.get("build", ["wood", "stone"])
+	b.spawn_pool.clear()
+	var _spawn = d.get("spawn")
+	if _spawn is Array:
+		for item in _spawn:
+			b.spawn_pool.append(item)
+	b.special_resources.clear()
+	var _special = d.get("special")
+	if _special is Array:
+		for item in _special:
+			b.special_resources.append(item)
+	b.building_materials.clear()
+	var _build = d.get("build")
+	if _build is Array:
+		for item in _build:
+			b.building_materials.append(item)
 	
-	b.mob_spawns = []
-	for ms in d.get("mobs", []):
-		b.mob_spawns.append({"id": ms[0], "weight": ms[1], "min_level": ms[2], "max_level": ms[3]})
+	b.mob_spawns.clear()
+	var mobs_data = d.get("mobs")
+	if mobs_data is Array:
+		for ms in mobs_data:
+			b.mob_spawns.append({"id": ms[0], "weight": ms[1], "min_level": ms[2], "max_level": ms[3]})
 	
 	return b
 

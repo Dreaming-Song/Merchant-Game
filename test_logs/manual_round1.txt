@@ -1,0 +1,12 @@
+
+==================================================
+测试轮次 #1 — 2026-06-25 11:35:14
+==================================================
+📁 .gd 文件: 107
+🔍 修复完整性: 10 个修复文件全部存在 ✅
+🏗️  TerrainManager tscn 类型: Node3D ✅
+❌ border_width_all 直接赋值: 10 处 (均为 StyleBoxFlat.new() 后赋值，合法)
+⚠️  fit_content_height: 0
+⚠️  show_percentage: 0
+⚠️  or "" == 优先级 bug: 0
+⚠️  material 直接赋值: 若干 (MeshInstance3D 场景合法用法)

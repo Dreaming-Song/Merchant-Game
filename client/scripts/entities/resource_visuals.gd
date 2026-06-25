@@ -33,7 +33,7 @@ static func create_visual(resource_type: String, parent: Node3D) -> MeshInstance
 	"""为 ResourceNode 创建视觉 + 返回主 MeshInstance3D 引用"""
 	var config = RESOURCE_VISUALS.get(resource_type, {"type": "herb", "color": Color.GREEN, "size": 0.5, "glow": false})
 	
-	match config.type:
+	match config.get("type", ""):
 		"herb": return _create_herb(parent, config)
 		"flower": return _create_flower(parent, config)
 		"mushroom": return _create_mushroom(parent, config)
@@ -41,8 +41,8 @@ static func create_visual(resource_type: String, parent: Node3D) -> MeshInstance
 		"tree": return _create_tree(parent, config)
 		"chest": return _create_chest(parent, config)
 		_:
-			var box = _add_mesh(parent, BoxMesh.new(), config.color, config.size)
-			box.position.y = config.size / 2
+			var box = _add_mesh(parent, BoxMesh.new(), config.get("color", Color.WHITE), config.get("size", 1.0))
+			box.position.y = config.get("size", 1.0) / 2
 			return box
 
 static func get_config(resource_type: String) -> Dictionary:
@@ -52,8 +52,8 @@ static func get_config(resource_type: String) -> Dictionary:
 
 static func _create_herb(parent: Node3D, config: Dictionary) -> MeshInstance3D:
 	"""小草：茎 + 叶子"""
-	var size = config.size
-	var color = config.color
+	var size = config.get("size", 1.0)
+	var color = config.get("color", Color.WHITE)
 	
 	# 茎（细圆柱）
 	var stem = _add_mesh(parent, CylinderMesh.new(), Color(0.3, 0.5, 0.2), 0.04, size * 0.6)
@@ -67,7 +67,7 @@ static func _create_herb(parent: Node3D, config: Dictionary) -> MeshInstance3D:
 		leaf.rotation_degrees.z = -30.0
 	
 	# 发光（如果是稀有）
-	if config.glow:
+	if config.get("glow", false):
 		_add_glow(parent, color, size * 0.3)
 	
 	return stem
@@ -76,8 +76,8 @@ static func _create_herb(parent: Node3D, config: Dictionary) -> MeshInstance3D:
 
 static func _create_flower(parent: Node3D, config: Dictionary) -> MeshInstance3D:
 	"""花朵：茎 + 花瓣 + 花心"""
-	var size = config.size
-	var color = config.color
+	var size = config.get("size", 1.0)
+	var color = config.get("color", Color.WHITE)
 	
 	# 茎
 	var stem = _add_mesh(parent, CylinderMesh.new(), Color(0.2, 0.5, 0.15), 0.03, size * 0.7)
@@ -96,7 +96,7 @@ static func _create_flower(parent: Node3D, config: Dictionary) -> MeshInstance3D
 	center.position.y = size * 0.72
 	
 	# 发光
-	if config.glow:
+	if config.get("glow", false):
 		_add_glow(parent, color, size * 0.4)
 	
 	return stem
@@ -105,8 +105,8 @@ static func _create_flower(parent: Node3D, config: Dictionary) -> MeshInstance3D
 
 static func _create_mushroom(parent: Node3D, config: Dictionary) -> MeshInstance3D:
 	"""蘑菇：伞盖 + 柄"""
-	var size = config.size
-	var color = config.color
+	var size = config.get("size", 1.0)
+	var color = config.get("color", Color.WHITE)
 	
 	# 柄
 	var stem = _add_mesh(parent, CylinderMesh.new(), Color(0.9, 0.85, 0.7), 0.05, size * 0.4)
@@ -118,7 +118,7 @@ static func _create_mushroom(parent: Node3D, config: Dictionary) -> MeshInstance
 	cap.scale = Vector3(1.0, 0.4, 1.0)
 	
 	# 伞盖斑点
-	if config.glow:
+	if config.get("glow", false):
 		for i in range(3):
 			var dot = _add_mesh(parent, SphereMesh.new(), Color.WHITE, 0.04)
 			dot.position = Vector3(
@@ -133,8 +133,8 @@ static func _create_mushroom(parent: Node3D, config: Dictionary) -> MeshInstance
 
 static func _create_crystal(parent: Node3D, config: Dictionary) -> MeshInstance3D:
 	"""晶体：主晶体 + 小晶体 + 底座"""
-	var size = config.size
-	var color = config.color
+	var size = config.get("size", 1.0)
+	var color = config.get("color", Color.WHITE)
 	
 	# 底座（扁石）
 	var base = _add_mesh(parent, BoxMesh.new(), Color(0.3, 0.3, 0.25), size * 0.8, 0.1, size * 0.8)
@@ -159,7 +159,7 @@ static func _create_crystal(parent: Node3D, config: Dictionary) -> MeshInstance3
 		small.rotation_degrees.x = randf_range(-30, 30)
 	
 	# 发光
-	if config.glow:
+	if config.get("glow", false):
 		_add_glow(parent, color, size * 0.5)
 	
 	return crystal
@@ -168,8 +168,8 @@ static func _create_crystal(parent: Node3D, config: Dictionary) -> MeshInstance3
 
 static func _create_tree(parent: Node3D, config: Dictionary) -> MeshInstance3D:
 	"""树木：树干 + 树冠"""
-	var size = config.size
-	var color = config.color
+	var size = config.get("size", 1.0)
+	var color = config.get("color", Color.WHITE)
 	
 	# 树干
 	var trunk = _add_mesh(parent, CylinderMesh.new(), Color(0.4, 0.25, 0.1), size * 0.08, size * 0.7)
@@ -189,7 +189,7 @@ static func _create_tree(parent: Node3D, config: Dictionary) -> MeshInstance3D:
 	canopy3.position = Vector3(-0.12 * size, size * 0.95, -0.08 * size)
 	
 	# 发光
-	if config.glow:
+	if config.get("glow", false):
 		_add_glow(parent, Color(0.5, 1.0, 0.5), size * 0.4)
 	
 	return trunk
@@ -198,8 +198,8 @@ static func _create_tree(parent: Node3D, config: Dictionary) -> MeshInstance3D:
 
 static func _create_chest(parent: Node3D, config: Dictionary) -> MeshInstance3D:
 	"""宝箱：箱体 + 箱盖 + 锁扣"""
-	var size = config.size
-	var color = config.color
+	var size = config.get("size", 1.0)
+	var color = config.get("color", Color.WHITE)
 	
 	# 箱体
 	var body = _add_mesh(parent, BoxMesh.new(), color, size * 0.7, size * 0.3, size * 0.5)
@@ -222,7 +222,7 @@ static func _create_chest(parent: Node3D, config: Dictionary) -> MeshInstance3D:
 	lock.position.z = size * 0.2
 	
 	# 发光
-	if config.glow:
+	if config.get("glow", false):
 		_add_glow(parent, Color(1.0, 0.8, 0.2), size * 0.5)
 	
 	return body
@@ -283,7 +283,7 @@ static func add_idle_animation(parent: Node3D, resource_type: String) -> void:
 	var tween = parent.create_tween().set_loops()
 	tween.set_parallel(true)
 	
-	match config.get("type", ""):
+	match config.get("type") or "":
 		"herb", "flower", "mushroom":
 			# 微摆动
 			tween.tween_property(parent, "rotation_degrees", Vector3(randf_range(-2, 2), 0, randf_range(-2, 2)), 1.5)
@@ -312,7 +312,7 @@ static func add_gather_particles(parent: Node3D, resource_type: String) -> void:
 	
 	# 粒子材质
 	var particle_mat = ParticleProcessMaterial.new()
-	particle_mat.color = Color(config.color.r, config.color.g, config.color.b, 0.8)
+	particle_mat.color = Color(config.get("color", Color.WHITE).r, config.get("color", Color.WHITE).g, config.get("color", Color.WHITE).b, 0.8)
 	particle_mat.velocity_min = 1.0
 	particle_mat.velocity_max = 3.0
 	particle_mat.spread = 180.0

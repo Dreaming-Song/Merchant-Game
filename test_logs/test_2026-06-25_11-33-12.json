@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-06-25_11-33-12",
+  "passed": 0,
+  "failed": 0,
+  "warnings": 11,
+  "quick": false,
+  "details": [
+    "  ⚠️  修复文件 hud.gd 未找到",
+    "  ⚠️  修复文件 chat_panel.gd 未找到",
+    "  ⚠️  修复文件 soul_forge_panel.gd 未找到",
+    "  ⚠️  修复文件 biome_manager.gd 未找到",
+    "  ⚠️  修复文件 minimap_hud.gd 未找到",
+    "  ⚠️  修复文件 pet_panel.gd 未找到",
+    "  ⚠️  修复文件 cultivation_aura.gd 未找到",
+    "  ⚠️  修复文件 skill_manager.gd 未找到",
+    "  ⚠️  修复文件 world_boss.gd 未找到",
+    "  ⚠️  修复文件 terrain_manager.gd 未找到",
+    "  ⚠️  main.tscn 未找到"
+  ]
+}

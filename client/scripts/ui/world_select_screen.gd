@@ -117,7 +117,7 @@ func _make_button(text: String, color: Color) -> Button:
 func _make_btn_style(color: Color, alpha: float) -> StyleBoxFlat:
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(color.r, color.g, color.b, alpha)
-	style.border_width_all = 1
+	style.set_border_width_all(1)
 	style.border_color = Color(1, 1, 1, 0.2)
 	style.corner_radius_top_left = 8
 	style.corner_radius_top_right = 8
@@ -166,7 +166,7 @@ func _create_world_card(world_info: Dictionary) -> PanelContainer:
 	
 	# 图标
 	var icon = Label.new()
-	icon.text = "📂" if world_info.get("game_mode", "") != "hardcore" else "💀"
+	icon.text = "📂" if world_info.get("game_mode") or "" != "hardcore" else "💀"
 	icon.add_theme_font_size_override("font_size", 32)
 	icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	icon.custom_minimum_size = Vector2(50, 0)
@@ -177,18 +177,18 @@ func _create_world_card(world_info: Dictionary) -> PanelContainer:
 	info_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	
 	var name_label = Label.new()
-	var mode_icon = "🟢" if world_info.get("game_mode", "survival") == "survival" else "🔴" if world_info.get("game_mode") == "hardcore" else "🟡"
-	name_label.text = "%s %s  (seed: %d)" % [mode_icon, world_info.get("name", "?"), world_info.get("seed", 0)]
+	var mode_icon = "🟢" if world_info.get("game_mode") or "survival" == "survival" else "🔴" if world_info.get("game_mode") == "hardcore" else "🟡"
+	name_label.text = "%s %s  (seed: %d)" % [mode_icon, world_info.get("name") or "?", world_info.get("seed") or 0]
 	name_label.add_theme_font_size_override("font_size", 18)
 	info_vbox.add_child(name_label)
 	
 	var meta_label = Label.new()
-	var play_time = world_info.get("play_time", 0.0)
+	var play_time = world_info.get("play_time") or 0.0
 	var hours = int(play_time / 3600)
 	var mins = int(int(play_time) % 3600 / 60)
-	var created = _format_time(world_info.get("created", 0))
+	var created = _format_time(world_info.get("created") or 0)
 	meta_label.text = "模式: %s | 游玩: %dh%02dm | 创建: %s" % [
-		world_info.get("game_mode", "survival"), hours, mins, created
+		world_info.get("game_mode") or "survival", hours, mins, created
 	]
 	meta_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
 	meta_label.add_theme_font_size_override("font_size", 12)
@@ -203,13 +203,13 @@ func _create_world_card(world_info: Dictionary) -> PanelContainer:
 	var enter_btn = Button.new()
 	enter_btn.text = "进入"
 	enter_btn.custom_minimum_size = Vector2(80, 36)
-	enter_btn.pressed.connect(_on_enter_world.bind(world_info.get("name", "")))
+	enter_btn.pressed.connect(_on_enter_world.bind(world_info.get("name") or ""))
 	btn_vbox.add_child(enter_btn)
 	
 	var del_btn = Button.new()
 	del_btn.text = "删除"
 	del_btn.custom_minimum_size = Vector2(80, 36)
-	del_btn.pressed.connect(_on_delete_world.bind(world_info.get("name", "")))
+	del_btn.pressed.connect(_on_delete_world.bind(world_info.get("name") or ""))
 	btn_vbox.add_child(del_btn)
 	
 	hbox.add_child(btn_vbox)
@@ -219,7 +219,7 @@ func _create_world_card(world_info: Dictionary) -> PanelContainer:
 func _make_card_style() -> StyleBoxFlat:
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.1, 0.12, 0.15, 0.8)
-	style.border_width_all = 1
+	style.set_border_width_all(1)
 	style.border_color = Color(0.2, 0.25, 0.3, 0.5)
 	style.corner_radius_top_left = 8
 	style.corner_radius_top_right = 8

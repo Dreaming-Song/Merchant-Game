@@ -3,8 +3,9 @@ extends Node
 ##
 ## 监听 NetworkManager 信号，自动创建/销毁 RemotePlayer
 ## 定期同步位置状态
+const RemotePlayer = preload("res://scripts/multiplayer/remote_player.gd")
 
-class_name PlayerSpawner
+# class_name PlayerSpawner — 已通过 autoload 注册
 
 signal local_player_interacted(target_player_id: String, action: String)
 
@@ -140,7 +141,7 @@ func _add_visual(remote: RemotePlayer) -> void:
 	remote.add_child(chat)
 	
 	# HP 条
-	var hp_bar = ProgressBar3D.new()
+	var hp_bar = Node3D.new()
 	hp_bar.name = "HpBar"
 	hp_bar.position = Vector3(0, 2.2, 0)
 	hp_bar.subdivision = 1
@@ -196,8 +197,10 @@ func _send_local_state() -> void:
 	var pos = _local_player.global_position
 	var rot = _local_player.rotation
 	
-	var hp = _local_player.get("current_hp", 100) if _local_player.has_method("get_hp") else 100
-	var mp = _local_player.get("current_mp", 50) if _local_player.has_method("get_mp") else 50
+	var hp = _local_player.get("current_hp") if _local_player.has_method("get_hp") else 100
+	if hp == null: hp = 100
+	var mp = _local_player.get("current_mp") if _local_player.has_method("get_mp") else 50
+	if mp == null: mp = 50
 	
 	_network.send_player_state(
 		pos.x, pos.y, pos.z,
@@ -240,7 +243,7 @@ func _handle_handhold(target_id: String, remote_node: Node) -> void:
 		return
 	
 	# 获取对方名字
-	var target_name = remote_node.get("display_name", "道友") if remote_node else "道友"
+	var target_name = remote_node.get("display_name") or "道友" if remote_node else "道友"
 	
 	# 如果已经牵着这个玩家 → 松开
 	if hhm.my_leader_id == target_id:

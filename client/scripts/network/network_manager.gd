@@ -6,7 +6,7 @@ extends Node
 ##   2. 其他玩家输入房主 IP:Port → 直接加入
 ##   3. 房主退出时自动保存世界并关闭服务器
 
-class_name NetworkManager
+# class_name 已通过 autoload 注册
 
 signal connected()
 signal disconnected(reason: String)

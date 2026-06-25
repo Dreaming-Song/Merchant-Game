@@ -179,28 +179,31 @@ func _add_hidden_quests() -> void:
 func _create_quest(data: Dictionary) -> Quest:
 	"""从数据字典创建任务"""
 	var quest = Quest.new()
-	quest.quest_id = data.id
-	quest.name = data.name
-	quest.description = data.desc
-	quest.type = data.get("type", QuestType.SIDE)
+	quest.quest_id = data.get("id", "")
+	quest.name = data.get("name", "未知任务")
+	quest.description = data.get("desc", "")
+	quest.type = data.get("type") or QuestType.SIDE
 	quest.requirements = data.get("requirements", {})
 	quest.rewards = QuestReward.new()
 
 	var rew = data.get("rewards", {})
-	quest.rewards.exp = rew.get("exp", 0)
-	quest.rewards.gold = rew.get("gold", 0)
+	quest.rewards.exp = rew.get("exp") or 0
+	quest.rewards.gold = rew.get("gold") or 0
 	quest.rewards.items = rew.get("items", {})
 	quest.rewards.spells_unlock = rew.get("spells_unlock", [])
 	quest.rewards.pet_unlock = rew.get("pet_unlock", [])
 
 	# 步骤
-	for s in data.get("steps", []):
+	var steps_data = data.get("steps", [])
+	if not steps_data is Array:
+		steps_data = []
+	for s in steps_data:
 		var step = QuestStep.new()
 		step.description = s.desc
 		step.condition_type = s.cond
-		step.target_id = s.get("target", "")
-		step.target_count = s.get("count", 1)
-		step.position = s.get("pos", Vector3.ZERO)
+		step.target_id = s.get("target") if s.get("target") is String else ""
+		step.target_count = s.get("count") if typeof(s.get("count")) in [TYPE_FLOAT, TYPE_INT] else 1
+		step.position = s.get("pos") if s.get("pos") is Vector3 else Vector3.ZERO
 		step.current_count = 0
 		quest.steps.append(step)
 
@@ -261,7 +264,8 @@ func _complete_quest(quest: Quest) -> void:
 	if player_ref:
 		player_ref.heal(quest.rewards.exp)  # TODO: 独立经验系统
 		# 发放物品
-		for item_name, count in quest.rewards.items.items():
+		for item_name in quest.rewards.items:
+			var count = quest.rewards.items[item_name]
 			pass  # TODO: 背包系统
 		# 解锁法术
 		for spell_name in quest.rewards.spells_unlock:
@@ -282,7 +286,10 @@ func _check_requirements(req: Dictionary) -> bool:
 		if not (req.quest_completed in _completed_quests):
 			return false
 	if req.has("level_reach"):
-		if player_ref == null or player_ref.get("level", 0) < req.level_reach:
+		var player_level = 0
+		if player_ref != null and "level" in player_ref:
+			player_level = player_ref.level
+		if player_level < req.level_reach:
 			return false
 	# TODO: 更多条件类型
 	return true
@@ -368,5 +375,5 @@ func get_save_data() -> Dictionary:
 
 func load_save_data(data: Dictionary) -> void:
 	if data.has("completed_quests"):
-		_completed_quests = data.completed_quests
+		_completed_quests = data.get("completed_quests", {})
 	# TODO: 恢复活跃任务进度

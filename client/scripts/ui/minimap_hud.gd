@@ -1,29 +1,21 @@
 extends Control
 ## 迷雾地图 HUD — 在游戏画面右上角显示迷你地图
-##
-## 布局：
-##   ┌──────────────────────┐
-##   │            ┌──────┐  │
-##   │            │ 🗺️   │  │
-##   │            │ 迷雾  │  │
-##   │            │ 地图  │  │
-##   │            └──────┘  │
-##   │                │
-##   │   玩家 ● → 方向 │
-##   └──────────────────────┘
 
 class_name MinimapHUD
 
 signal fullscreen_map_toggled()
 
-var _minimap: Minimap = null
+# 类型预加载
+const _MinimapType = preload("res://scripts/ui/minimap.gd")
+
+var _minimap: _MinimapType = null
 var _map_rect: TextureRect = null
 var _player_marker: TextureRect = null
 var _fog_rect: TextureRect = null
 
 func _ready() -> void:
 	# 创建 minimap 逻辑
-	_minimap = Minimap.new()
+	_minimap = _MinimapType.new()
 	_minimap.name = "MinimapLogic"
 	add_child(_minimap)
 	
@@ -82,7 +74,7 @@ func _ready() -> void:
 func _make_map_style() -> StyleBoxFlat:
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.05, 0.05, 0.1, 0.7)
-	style.border_width_all = 2
+	style.set_border_width_all(2)
 	style.border_color = Color(0.3, 0.4, 0.5, 0.5)
 	style.corner_radius_top_left = 8
 	style.corner_radius_top_right = 8

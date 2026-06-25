@@ -92,7 +92,8 @@ func activate(boss: Node) -> void:
 	if boss.has_method("get_boss_config") and boss.has("boss_type"):
 		var config = boss.get_boss_config(boss.boss_type)
 		_title_label.text = config.get("title", "未知首领")
-		_name_label.text = "🐉 %s" % config.get("name", "")
+		var name_val = config.get("name", "")
+		_name_label.text = "🐉 %s" % name_val
 		_phase_indicator.text = "⚡ Phase 1"
 		
 		var element = config.get("element", "木")

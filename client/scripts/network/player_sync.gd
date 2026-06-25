@@ -30,8 +30,8 @@ func _physics_process(delta: float) -> void:
 
 func apply_state(state: Dictionary) -> void:
 	"""应用服务端同步过来的玩家状态"""
-	_target_pos = Vector3(state.get("x", 0), state.get("y", 0), state.get("z", 0))
-	_target_rot = Vector3(0, state.get("rot_y", 0), 0)
+	_target_pos = Vector3(state.get("x") or 0, state.get("y") or 0, state.get("z") or 0)
+	_target_rot = Vector3(0, state.get("rot_y") or 0, 0)
 
 	# TODO: 根据 is_flying 切换飞行/地面动画
 	# TODO: 同步 HP 显示血条

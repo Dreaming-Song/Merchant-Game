@@ -27,7 +27,7 @@ var _is_fullscreen: bool = false
 var _last_player_chunk: Vector2i = Vector2i(999, 999)
 
 func _ready() -> void:
-	_map_gen = get_node("/root/MapGenerator")
+	_map_gen = get_node("/root/GameManager/MapGenerator") if has_node("/root/GameManager/MapGenerator") else null
 	
 	# 初始化图像
 	_map_image = Image.create(map_size, map_size, false, Image.FORMAT_RGBA8)
@@ -55,7 +55,7 @@ func _draw_base_map() -> void:
 		return
 	
 	# 遍历地图像素，映射到世界坐标
-	var world_size = _map_gen.get("world_size", 1024)
+	var world_size = _map_gen.get("world_size") or 1024
 	var pixels_per_unit = map_size / (world_size * 2.0)  # -world_size ~ +world_size
 	
 	for px in range(map_size):
@@ -82,7 +82,7 @@ func update_player_position(player_world_pos: Vector3) -> void:
 		return
 	
 	# 世界坐标 → 地图像素
-	var world_size = _map_gen.get("world_size", 1024)
+	var world_size = _map_gen.get("world_size") or 1024
 	var pixels_per_unit = map_size / (world_size * 2.0)
 	
 	var mx = player_world_pos.x * pixels_per_unit + map_size / 2.0

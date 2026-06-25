@@ -10,49 +10,245 @@ config/icon="res://assets/textures/icon.png"
 [autoload]
 MagicSystem="*res://scripts/magic/magic_system.gd"
 AlchemySystem="*res://scripts/alchemy/alchemy_system.gd"
-SaveSystem="*res://scripts/save/save_system.gd"
+SaveSystem="*res://scripts/player/save_system.gd"
 NetworkManager="*res://scripts/network/network_manager.gd"
 QuestSystem="*res://scripts/quest/quest_system.gd"
+WorldEventManager="*res://scripts/events/world_event_manager.gd"
+GameManager="*res://scripts/core/game_manager.gd"
+UIManager="*res://scripts/ui/ui_manager.gd"
+WorldManager="*res://scripts/core/world_manager.gd"
+InputHandler="*res://scripts/core/input_handler.gd"
+SettingsManager="*res://scripts/core/settings_manager.gd"
+InteractionDetector="*res://scripts/core/interaction_detector.gd"
+ItemDatabase="*res://scripts/inventory/item_database.gd"
+BiomeManager="*res://scripts/world/biome_manager.gd"
+DayNightCycle="*res://scripts/world/day_night_cycle.gd"
+BossManager="*res://scripts/combat/boss_manager.gd"
+WorldSpawner="*res://scripts/world/world_spawner.gd"
+PlayerSpawner="*res://scripts/multiplayer/player_spawner.gd"
+HandHoldManager="*res://scripts/multiplayer/handhold_manager.gd"
+SoulForgeSystem="*res://scripts/crafting/soul_forge_system.gd"
 
 [rendering]
 renderer/rendering_method="mobile"
 environment/defaults/default_clear_color=Color(0.5, 0.7, 1.0, 1.0)
 
 [input]
-; 基础移动
+; 基础移动 — 键盘WASD + 手柄左摇杆
 move_forward={
 "deadzone": 0.5,
-"events": [{"keycode": 87, "type": 0}]
+"events": [{"keycode": 87, "type": 0}, {"axis": 1, "axis_value": -1.0, "type": 1}]
 }
 move_back={
 "deadzone": 0.5,
-"events": [{"keycode": 83, "type": 0}]
+"events": [{"keycode": 83, "type": 0}, {"axis": 1, "axis_value": 1.0, "type": 1}]
 }
 move_left={
 "deadzone": 0.5,
-"events": [{"keycode": 65, "type": 0}]
+"events": [{"keycode": 65, "type": 0}, {"axis": 0, "axis_value": -1.0, "type": 1}]
 }
 move_right={
 "deadzone": 0.5,
-"events": [{"keycode": 68, "type": 0}]
+"events": [{"keycode": 68, "type": 0}, {"axis": 0, "axis_value": 1.0, "type": 1}]
 }
-; 跳跃/御剑
+; 跳跃 — 空格 + 手柄X键
 jump={
 "deadzone": 0.5,
-"events": [{"keycode": 32, "type": 0}]
+"events": [{"keycode": 32, "type": 0}, {"button": 2, "type": 1}]
 }
+; 御剑飞行 — F + 手柄Y键
 sword_fly={
 "deadzone": 0.5,
-"events": [{"keycode": 70, "type": 0}]
+"events": [{"keycode": 70, "type": 0}, {"button": 3, "type": 1}]
 }
-; 交互
+; 交互 — E + 手柄A键
 interact={
 "deadzone": 0.5,
-"events": [{"keycode": 69, "type": 0}]
+"events": [{"keycode": 69, "type": 0}, {"button": 0, "type": 1}]
 }
+; 攻击 — 鼠标左键 + 手柄RB
 attack={
 "deadzone": 0.5,
-"events": [{"keycode": 4194325, "type": 0}]
+"events": [{"keycode": 4194325, "type": 0}, {"button": 5, "type": 1}]
+}
+; 任务面板 — J + 手柄LB
+toggle_quest={
+"deadzone": 0.5,
+"events": [{"keycode": 74, "type": 0}, {"button": 4, "type": 1}]
+}
+; 宠物面板 — P + 手柄Back
+toggle_pet={
+"deadzone": 0.5,
+"events": [{"keycode": 80, "type": 0}, {"button": 8, "type": 1}]
+}
+; 表情轮盘 — B + 手柄Start
+toggle_emote={
+"deadzone": 0.5,
+"events": [{"keycode": 66, "type": 0}, {"button": 7, "type": 1}]
+}
+; 🔧 战斗按键（键盘+手柄）
+lock_on={
+"deadzone": 0.5,
+"events": [{"keycode": 4194305, "type": 0}, {"button": 9, "type": 1}]
+}
+block={
+"deadzone": 0.5,
+"events": [{"keycode": 4194326, "type": 0}, {"button": 6, "type": 1}]
+}
+dodge={
+"deadzone": 0.5,
+"events": [{"keycode": 4194322, "type": 0}, {"button": 1, "type": 1}]
+}
+cast_spell={
+"deadzone": 0.5,
+"events": [{"keycode": 82, "type": 0}, {"button": 0, "type": 1}]
+}
+; 武器切换 — 键盘1~4 + 手柄D-pad上下左右
+weapon_sword={
+"deadzone": 0.5,
+"events": [{"keycode": 49, "type": 0}, {"button": 10, "type": 1}]
+}
+weapon_spell={
+"deadzone": 0.5,
+"events": [{"keycode": 50, "type": 0}, {"button": 11, "type": 1}]
+}
+weapon_body={
+"deadzone": 0.5,
+"events": [{"keycode": 51, "type": 0}, {"button": 12, "type": 1}]
+}
+weapon_talisman={
+"deadzone": 0.5,
+"events": [{"keycode": 52, "type": 0}, {"button": 13, "type": 1}]
+}
+; 🔧 UI快捷键 — 键盘+手柄
+toggle_inventory={
+"deadzone": 0.5,
+"events": [{"keycode": 73, "type": 0}, {"button": 4, "type": 1}]
+}
+toggle_crafting={
+"deadzone": 0.5,
+"events": [{"keycode": 4194306, "type": 0}, {"button": 5, "type": 1}]
+}
+toggle_cultivation={
+"deadzone": 0.5,
+"events": [{"keycode": 67, "type": 0}, {"button": 8, "type": 1}]
+}
+toggle_building={
+"deadzone": 0.5,
+"events": [{"keycode": 66, "type": 0}, {"button": 7, "type": 1}]
+}
+; 🔧 功能按键
+sprint={
+"deadzone": 0.5,
+"events": [{"keycode": 4194306, "type": 0}, {"button": 11, "type": 1}]
+}
+drop_item={
+"deadzone": 0.5,
+"events": [{"keycode": 81, "type": 0}, {"button": 2, "type": 1}]
+}
+hotbar_1={
+"deadzone": 0.5,
+"events": [{"keycode": 49, "type": 0}, {"button": 10, "type": 1}]
+}
+hotbar_2={
+"deadzone": 0.5,
+"events": [{"keycode": 50, "type": 0}, {"button": 11, "type": 1}]
+}
+hotbar_3={
+"deadzone": 0.5,
+"events": [{"keycode": 51, "type": 0}, {"button": 12, "type": 1}]
+}
+hotbar_4={
+"deadzone": 0.5,
+"events": [{"keycode": 52, "type": 0}, {"button": 13, "type": 1}]
+}
+hotbar_5={
+"deadzone": 0.5,
+"events": [{"keycode": 53, "type": 0}]
+}
+; Tab菜单
+arena_panel={
+"deadzone": 0.5,
+"events": [{"keycode": 4194306, "type": 0}]
+}
+; 地图 — M + 手柄LB+RB组合（Y）
+toggle_map={
+"deadzone": 0.5,
+"events": [{"keycode": 77, "type": 0}]
+}
+; 帮助 — H
+toggle_help={
+"deadzone": 0.5,
+"events": [{"keycode": 72, "type": 0}]
+}
+; 任务追踪 — J + 手柄LB
+toggle_quest={
+"deadzone": 0.5,
+"events": [{"keycode": 74, "type": 0}, {"button": 4, "type": 1}]
+}
+; 灵宠面板 — P + 手柄Back
+toggle_pet={
+"deadzone": 0.5,
+"events": [{"keycode": 80, "type": 0}, {"button": 8, "type": 1}]
+}
+; 竞技场面板
+toggle_arena_panel={
+"deadzone": 0.5,
+"events": [{"keycode": 4194306, "type": 0}]
+}
+; 表情轮盘 — Tab + 手柄Start
+emote_wheel={
+"deadzone": 0.5,
+"events": [{"keycode": 4194305, "type": 0}, {"button": 7, "type": 1}]
+}
+; 渡劫系统专用动作（手柄映射）
+trib_demon_up={
+"deadzone": 0.5,
+"events": [{"button": 10, "type": 1}]
+}
+trib_demon_down={
+"deadzone": 0.5,
+"events": [{"button": 11, "type": 1}]
+}
+trib_demon_defend={
+"deadzone": 0.5,
+"events": [{"button": 0, "type": 1}]
+}
+trib_demon_break_left={
+"deadzone": 0.5,
+"events": [{"button": 12, "type": 1}]
+}
+trib_demon_break_right={
+"deadzone": 0.5,
+"events": [{"button": 13, "type": 1}]
+}
+trib_elem_fire={
+"deadzone": 0.5,
+"events": [{"button": 10, "type": 1}]
+}
+trib_elem_water={
+"deadzone": 0.5,
+"events": [{"button": 11, "type": 1}]
+}
+trib_elem_wind={
+"deadzone": 0.5,
+"events": [{"button": 12, "type": 1}]
+}
+trib_elem_earth={
+"deadzone": 0.5,
+"events": [{"button": 13, "type": 1}]
+}
+trib_cycle_left={
+"deadzone": 0.5,
+"events": [{"button": 12, "type": 1}]
+}
+trib_cycle_right={
+"deadzone": 0.5,
+"events": [{"button": 13, "type": 1}]
+}
+trib_confirm={
+"deadzone": 0.5,
+"events": [{"button": 0, "type": 1}]
 }
 
 [physics]

@@ -71,8 +71,8 @@ func _open_chest(player: Node) -> void:
 	var gm = get_node("/root/GameManager") if has_node("/root/GameManager") else null
 	if gm and gm.inventory:
 		for item in items:
-			var added = gm.inventory.add_item(item.id, item.count)
-			print("🎁 获得: %s × %d" % [item.name, added])
+			var added = gm.inventory.add_item(item.get("id", ""), item.get("count", 1))
+			print("🎁 获得: %s × %d" % [item.get("name", ""), added])
 	
 	chest_looted.emit(name)
 
@@ -86,9 +86,9 @@ func _generate_loot() -> Array[Dictionary]:
 	
 	# 随机掉落
 	for entry in loot_table:
-		if randf() <= entry.get("chance", 1.0):
-			var count = randi_range(entry.get("min_count", 1), entry.get("max_count", 1))
-			result.append({"id": entry.id, "name": entry.get("name", entry.id), "count": count})
+		if randf() <= entry.get("chance") or 1.0:
+			var count = randi_range(entry.get("min_count") or 1, entry.get("max_count") or 1)
+			result.append({"id": entry.id, "name": entry.get("name") or entry.id, "count": count})
 	
 	return result
 

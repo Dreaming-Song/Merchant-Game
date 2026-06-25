@@ -1,0 +1,227 @@
+[gd_scene load_steps=2 format=3 uid="uid://controller_layout_ref"]
+
+[ext_resource type="Script" path="res://scripts/ui/controller_layout.gd" id="1_controller"]
+
+[node name="ControllerLayout" type="Control"]
+script = ExtResource("1_controller")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+; ===== 标题 =====
+[node name="Title" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 40.0
+offset_top = 20.0
+offset_right = 600.0
+offset_bottom = 60.0
+theme_override_font_sizes/font_size = 28
+theme_override_colors/font_color = Color(1, 0.95, 0.7)
+text = "🎮 手柄操作指南"
+horizontal_alignment = 0
+
+; ===== 左摇杆 + 移动 =====
+[node name="LeftStickGroup" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 40.0
+offset_top = 80.0
+offset_right = 340.0
+offset_bottom = 180.0
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="LeftStickGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.3, 0.8, 1.0)
+text = "⬆ 左摇杆 — 移动"
+
+[node name="Line1" type="Label" parent="LeftStickGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.8, 0.8, 0.9)
+text = "左摇杆移动 · 右摇杆视角"
+
+[node name="Line2" type="Label" parent="LeftStickGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.8, 0.8, 0.9)
+text = "L3（按下左摇杆）— 冲刺"
+
+; ===== ABXY 按钮 =====
+[node name="ButtonGroup" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 40.0
+offset_top = 200.0
+offset_right = 340.0
+offset_bottom = 380.0
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="ButtonGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.3, 0.8, 1.0)
+text = "🔘 按键面板"
+
+[node name="BtnA" type="Label" parent="ButtonGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.4, 1.0, 0.4)
+text = "🅰 交互 / 确认施法"
+
+[node name="BtnB" type="Label" parent="ButtonGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(1.0, 0.4, 0.4)
+text = "🅱 闪避 / 关闭面板"
+
+[node name="BtnX" type="Label" parent="ButtonGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.4, 0.6, 1.0)
+text = "✖ 跳跃 / 丢弃物品"
+
+[node name="BtnY" type="Label" parent="ButtonGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(1.0, 0.9, 0.4)
+text = "🆈 御剑飞行"
+
+; ===== 肩键 + 扳机 =====
+[node name="ShoulderGroup" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 40.0
+offset_top = 400.0
+offset_right = 340.0
+offset_bottom = 560.0
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="ShoulderGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.3, 0.8, 1.0)
+text = "🔽 肩键 & 扳机"
+
+[node name="LB" type="Label" parent="ShoulderGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.8, 0.8, 0.9)
+text = "LB — 背包 / 任务面板"
+
+[node name="RB" type="Label" parent="ShoulderGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.8, 0.8, 0.9)
+text = "RB — 攻击 / 合成面板"
+
+[node name="RT" type="Label" parent="ShoulderGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.8, 0.8, 0.9)
+text = "RT — 格挡"
+
+; ===== D-pad 十字键 =====
+[node name="DPadGroup" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 400.0
+offset_top = 80.0
+offset_right = 700.0
+offset_bottom = 200.0
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="DPadGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.3, 0.8, 1.0)
+text = "⬆ D-pad 十字键"
+
+[node name="Line1" type="Label" parent="DPadGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.8, 0.8, 0.9)
+text = "↑↓←→ 热键栏 1~4 / 法术切换"
+
+[node name="Line2" type="Label" parent="DPadGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.8, 0.8, 0.9)
+text = "渡劫：方向选择 / 五行元素"
+
+[node name="Line3" type="Label" parent="DPadGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.8, 0.8, 0.9)
+text = "←→ 循环切换选项"
+
+; ===== 特殊按键 =====
+[node name="SpecialGroup" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 400.0
+offset_top = 220.0
+offset_right = 700.0
+offset_bottom = 400.0
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="SpecialGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.3, 0.8, 1.0)
+text = "⭐ 特殊按键"
+
+[node name="Start" type="Label" parent="SpecialGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.8, 0.8, 0.9)
+text = "Start — 建造 / 表情 / 地图"
+
+[node name="Back" type="Label" parent="SpecialGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.8, 0.8, 0.9)
+text = "Back — 宠物面板 / 修行面板"
+
+[node name="L3" type="Label" parent="SpecialGroup"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.8, 0.8, 0.9)
+text = "L3(按摇杆) — 冲刺 / 锁敌"
+
+; ===== 底部提示 =====
+[node name="Footer" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -300.0
+offset_top = -60.0
+offset_right = 300.0
+offset_bottom = -20.0
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.5, 0.5, 0.6)
+text = "键盘同效操作：WASD移动 · E交互 · F御剑 · Q丢弃 · 1~4法术 · I背包 · C修行 · B建造 · ESC暂停"
+horizontal_alignment = 1
+
+; ===== 关闭按钮 =====
+[node name="CloseBtn" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -120.0
+offset_right = -20.0
+offset_top = 20.0
+offset_bottom = 54.0
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_normal = Color(0.6, 0.3, 0.3)
+theme_override_colors/font_hover = Color(1.0, 0.4, 0.4)
+text = "✕ 关闭"

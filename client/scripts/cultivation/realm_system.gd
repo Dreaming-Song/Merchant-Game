@@ -6,6 +6,9 @@ extends Node
 
 class_name RealmSystem
 
+# ==================== 外部依赖 ====================
+const TribulationManager = preload("res://scripts/effects/tribulation_manager.gd")
+
 # ==================== 九重境界 ====================
 enum Realm {
 	MORTAL,          # 凡人 —— 初始
@@ -180,10 +183,10 @@ static func get_realm_data(realm: int) -> Dictionary:
 
 # ==================== 境界名 ====================
 static func get_realm_name(realm: int) -> String:
-	return get_realm_data(realm).get("name", "未知")
+	return get_realm_data(realm).get("name") or "未知"
 
 static func get_realm_title(realm: int) -> String:
-	return get_realm_data(realm).get("title", "")
+	return get_realm_data(realm).get("title") or ""
 
 # ==================== 运行状态 ====================
 var current_realm: int = Realm.MORTAL
@@ -200,7 +203,7 @@ func add_cultivation_xp(amount: int) -> void:
 	"""增加修为值"""
 	cultivation_xp += amount
 	var data = get_realm_data(current_realm)
-	var needed = data.breakthrough_xp
+	var needed = data.get("breakthrough_xp", 0)
 	breakthrough_progress = min(float(cultivation_xp) / float(max(needed, 1)), 1.0)
 	xp_changed.emit(cultivation_xp, needed)
 	
@@ -211,9 +214,10 @@ func add_cultivation_xp(amount: int) -> void:
 ## 尝试突破境界
 func try_breakthrough(
 	inventory_checker: Callable = func(_item, _count): return true,
-	inventory_consumer: Callable = func(_item, _count): pass  # 🔧 B4: 消耗材料回调
-) -> bool:
-	"""inventory_checker(item_id, count) → bool，检查是否有足够材料
+	inventory_consumer: Callable = func(_item, _count): pass
+) -> Variant:
+	"""返回: true=成功, "tribulation"=需要渡劫, false=失败
+	   inventory_checker(item_id, count) → bool，检查是否有足够材料
 	   inventory_consumer(item_id, count) → void，消耗材料"""
 	if current_realm >= Realm.ASCENSION:
 		return false
@@ -221,21 +225,51 @@ func try_breakthrough(
 	var data = get_realm_data(current_realm)
 	
 	# 检查修为
-	if cultivation_xp < data.breakthrough_xp:
-		print("⚠️ 修为不足（%d/%d）" % [cultivation_xp, data.breakthrough_xp])
+	if cultivation_xp < data.get("breakthrough_xp", 0):
+		print("⚠️ 修为不足（%d/%d）" % [cultivation_xp, data.get("breakthrough_xp", 0)])
 		return false
 	
 	# 检查突破材料
-	for req in data.breakthrough_items:
+	for req in data.get("breakthrough_items", []):
 		if not inventory_checker.call(req.item, req.count):
 			print("⚠️ 缺少突破材料：%s × %d" % [req.item, req.count])
 			return false
 	
-	# 🔧 B4: 消耗材料
-	for req in data.breakthrough_items:
+	# 需要渡劫？（金丹及以上）
+	if TribulationManager.needs_tribulation(current_realm):
+		# 返回"需要渡劫"信号，由调用方（如GameManager）启动雷劫流程
+		return "tribulation"
+	
+	# 低境界直接突破
+	return _do_breakthrough(inventory_consumer)
+
+## 渡劫成功后强制突破（由 TribulationManager 回调）
+func force_breakthrough(target_realm: int) -> bool:
+	"""渡劫成功后调用此方法完成突破"""
+	if target_realm <= current_realm:
+		return false
+	
+	var old_realm = current_realm
+	current_realm = target_realm
+	cultivation_xp = 0
+	breakthrough_progress = 0.0
+	
+	print("🌟🌟🌟 渡劫成功！%s → %s 🌟🌟🌟" % [
+		get_realm_name(old_realm), get_realm_name(current_realm)
+	])
+	
+	realm_changed.emit(old_realm, current_realm, get_realm_name(current_realm))
+	return true
+
+## ✨ 内部：执行实际突破
+func _do_breakthrough(inventory_consumer: Callable) -> bool:
+	"""消耗材料并突破"""
+	var data = get_realm_data(current_realm)
+	
+	# 消耗突破材料
+	for req in data.get("breakthrough_items", []):
 		inventory_consumer.call(req.item, req.count)
 	
-	# 突破成功！
 	var old_realm = current_realm
 	current_realm += 1
 	cultivation_xp = 0
@@ -255,9 +289,9 @@ func try_breakthrough(
 func get_stat_multiplier() -> Dictionary:
 	var data = get_realm_data(current_realm)
 	return {
-		"stat_mult": data.stat_mult,
-		"max_hp_bonus": data.max_hp_bonus,
-		"max_mp_bonus": data.max_mp_bonus,
+		"stat_mult": data.get("stat_mult", 1.0),
+		"max_hp_bonus": data.get("max_hp_bonus", 0),
+		"max_mp_bonus": data.get("max_mp_bonus", 0),
 	}
 
 ## 获取当前可用的建筑等级（材料层级）
@@ -273,7 +307,7 @@ func get_current_unlocks() -> Array[String]:
 	var unlocks: Array[String] = []
 	for r in range(Realm.MORTAL, current_realm + 1):
 		var data = get_realm_data(r)
-		unlocks += data.get("unlocks", [])
+		unlocks += data.get("unlocks") or []
 	return unlocks
 
 ## 检查是否已解锁某能力
@@ -289,5 +323,5 @@ func get_save_data() -> Dictionary:
 	}
 
 func load_save_data(data: Dictionary) -> void:
-	current_realm = data.get("current_realm", Realm.MORTAL)
-	cultivation_xp = data.get("cultivation_xp", 0)
+	current_realm = data.get("current_realm") or Realm.MORTAL
+	cultivation_xp = data.get("cultivation_xp") or 0

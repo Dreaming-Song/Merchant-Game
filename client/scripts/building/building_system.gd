@@ -11,6 +11,8 @@ extends Node
 class_name BuildingSystem
 
 # ==================== 建筑块类型 ====================
+const WorkstationStation = preload("res://scripts/building/workstation_station.gd")
+
 enum PieceType {
 	WALL,       # 墙（实体碰撞）
 	FLOOR,      # 地板
@@ -338,4 +340,4 @@ func get_save_data() -> Dictionary:
 
 func load_save_data(data: Dictionary) -> void:
 	_placed_pieces = data.get("placed_pieces", {})
-	_piece_counter = data.get("piece_counter", 0)
+	_piece_counter = data.get("piece_counter") or 0

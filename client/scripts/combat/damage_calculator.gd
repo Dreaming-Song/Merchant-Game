@@ -1,9 +1,8 @@
 extends Node
+class_name DamageCalculator
 ## 伤害计算器 — 五行克制、暴击、减伤、最终伤害公式
 ##
 ## 纯静态方法，供所有战斗系统调用
-
-class_name DamageCalculator
 
 # ==================== 五行克制表 ====================
 const ELEMENT_COUNTER: Dictionary = {
@@ -31,27 +30,27 @@ static func calculate_damage(
 ) -> Dictionary:
 	
 	# 1. 基础攻击力
-	var base_attack = attacker_stats.get("attack", 10)
-	var damage_mult = skill_data.get("damage_mult", 1.0)
+	var base_attack = int(attacker_stats.get("attack", 10))
+	var damage_mult = float(skill_data.get("damage_mult", 1.0))
 	var raw_damage = base_attack * damage_mult
 	
 	# 2. 技能额外伤害加成
-	var skill_bonus = skill_data.get("damage_bonus", 0.0)
+	var skill_bonus = float(skill_data.get("damage_bonus", 0.0))
 	raw_damage += skill_bonus
 	
 	# 3. 防御减免
-	var defense = defender_stats.get("defense", 0)
+	var defense = float(defender_stats.get("defense", 0))
 	# 减伤公式：防御/(防御+100)，软上限
 	var defense_reduction = defense / (defense + 100.0)
 	raw_damage *= (1.0 - defense_reduction)
 	
 	# 4. 常驻减伤
-	var damage_reduction = defender_stats.get("damage_reduction", 0.0)
+	var damage_reduction = float(defender_stats.get("damage_reduction", 0.0))
 	raw_damage *= (1.0 - damage_reduction)
 	
 	# 5. 五行克制
-	var attacker_element = skill_data.get("element", "")
-	var defender_element = defender_stats.get("element", "")
+	var attacker_element = str(skill_data.get("element", ""))
+	var defender_element = str(defender_stats.get("element", ""))
 	var element_mult = 1.0
 	var element_detail = ""
 	
@@ -66,12 +65,12 @@ static func calculate_damage(
 	raw_damage *= element_mult
 	
 	# 6. 元素伤害加成
-	var element_damage_bonus = attacker_stats.get("element_damage_bonus", 0.0)
+	var element_damage_bonus = float(attacker_stats.get("element_damage_bonus", 0.0))
 	raw_damage *= (1.0 + element_damage_bonus)
 	
 	# 7. 暴击判定
-	var crit_rate = attacker_stats.get("crit_rate", 0.0)
-	var crit_damage = attacker_stats.get("crit_damage", 1.5)
+	var crit_rate = float(attacker_stats.get("crit_rate", 0.0))
+	var crit_damage = float(attacker_stats.get("crit_damage", 1.5))
 	var is_crit = false
 	
 	# 技能指定必定暴击
@@ -116,14 +115,14 @@ static func calculate_healing(
 	target_stats: Dictionary,
 	skill_data: Dictionary
 ) -> int:
-	var base_attack = healer_stats.get("attack", 10)
-	var heal_mult = skill_data.get("effects", {}).get("heal_mult", 1.0)
-	var heal_bonus = healer_stats.get("heal_bonus", 0.0)
+	var base_attack = float(healer_stats.get("attack", 10))
+	var heal_mult = float(skill_data.get("effects", {}).get("heal_mult", 1.0))
+	var heal_bonus = float(healer_stats.get("heal_bonus", 0.0))
 	
 	var heal_amount = base_attack * heal_mult * (1.0 + heal_bonus)
 	
 	# 目标受治疗加成
-	var incoming_heal_bonus = target_stats.get("incoming_heal_bonus", 0.0)
+	var incoming_heal_bonus = float(target_stats.get("incoming_heal_bonus", 0.0))
 	heal_amount *= (1.0 + incoming_heal_bonus)
 	
 	var variance = randf_range(0.95, 1.05)
@@ -135,8 +134,8 @@ static func calculate_shield(
 	caster_stats: Dictionary,
 	skill_data: Dictionary
 ) -> int:
-	var base_attack = caster_stats.get("attack", 10)
-	var shield_mult = skill_data.get("effects", {}).get("shield_mult", 1.0)
+	var base_attack = float(caster_stats.get("attack", 10))
+	var shield_mult = float(skill_data.get("effects", {}).get("shield_mult", 1.0))
 	return max(int(base_attack * shield_mult), 1)
 
 # ==================== 状态效果概率 ====================
@@ -147,7 +146,7 @@ static func roll_status_effect(
 	base_prob: float,
 	defender_stats: Dictionary
 ) -> bool:
-	var status_resist = defender_stats.get("status_resist", 0.0)
+	var status_resist = float(defender_stats.get("status_resist", 0.0))
 	var effective_prob = base_prob * (1.0 - status_resist)
 	return randf() < effective_prob
 

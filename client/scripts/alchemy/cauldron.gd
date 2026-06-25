@@ -18,7 +18,7 @@ var temperature: float = 50.0                   # 当前温度
 var optimal_temp: float = 60.0                  # 最佳温度
 var player_in_range: bool = false
 
-@onready var alchemy_system: Node = get_node("/root/Main/AlchemySystem")
+@onready var alchemy_system: Node = get_node("/root/AlchemySystem")
 @onready var interaction_area: Area3D = $InteractionArea
 @onready var fire_particles: GPUParticles3D = $FireParticles
 
@@ -116,6 +116,6 @@ func get_save_data() -> Dictionary:
 
 func load_save_data(data: Dictionary) -> void:
 	if data.has("is_cooking"):
-		is_cooking = data.is_cooking
-		cooking_progress = data.get("cooking_progress", 0.0)
-		temperature = data.get("temperature", 50.0)
+		is_cooking = data.get("is_cooking")
+		cooking_progress = data.get("cooking_progress") or 0.0
+		temperature = data.get("temperature") or 50.0

@@ -1,5 +1,7 @@
 extends CanvasLayer
 ## 大世界 HUD — 显示当前地貌/时辰/附近地标
+const BiomeManager = preload("res://scripts/world/biome_manager.gd")
+const DayNightCycle = preload("res://scripts/world/day_night_cycle.gd")
 
 class_name WorldHUD
 
@@ -47,7 +49,7 @@ func _process(_delta: float) -> void:
 	if poi_system:
 		var info = poi_system.get_nearest_poi_info()
 		if not info.is_empty():
-			var icon = "🗺️" if info.discovered else "❓"
-			poi_label.text = "%s %s (%.0fm)" % [icon, info.name, info.distance]
+			var icon = "🗺️" if info.get("discovered", false) else "❓"
+			poi_label.text = "%s %s (%.0fm)" % [icon, info.get("name", "?), info.get("distance", 0)]
 		else:
 			poi_label.text = ""

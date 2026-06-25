@@ -1,16 +1,22 @@
+class_name TerrainManager
+
 extends Node3D
 ## 🌍 群系感知地形管理器 — 根据 BiomeManager 数据生成差异化地形
 ##
 ## 每个群系拥有独特的地形轮廓、颜色、水面高度
 ## chunk 间实现平滑过渡
+const BiomeManager = preload("res://scripts/world/biome_manager.gd")
 
 # ---------- 区块配置 ----------
 @export var chunk_size: float = 16.0
 @export var view_distance: int = 4
 @export var block_scale: float = 1.0
 
+# ---------- 水面高度 ----------
+var ocean_level: float = 0.0  # 🔧 海平面高度（被 player_controller 读取）
+
 # ---------- 子节点 ----------
-@onready var chunk_container: Node3D = $Chunks
+@onready var chunk_container: Node3D = $Chunks if has_node("Chunks") else null
 
 # ---------- 引用 ----------
 var _biome_manager: BiomeManager = null
@@ -27,6 +33,11 @@ func _ready() -> void:
 	if not _biome_manager:
 		_biome_manager = BiomeManager.new()
 		add_child(_biome_manager)
+	
+	if not chunk_container:
+		chunk_container = Node3D.new()
+		chunk_container.name = "Chunks"
+		add_child(chunk_container)
 
 
 # ==================== 材质生成 ====================

@@ -6,6 +6,10 @@ extends Node
 
 class_name CraftingSystem
 
+# ==================== 外部依赖 ====================
+const RealmSystem = preload("res://scripts/cultivation/realm_system.gd")
+const RecipeDatabase = preload("res://scripts/crafting/recipe_database.gd")
+
 # ==================== 信号 ====================
 signal item_crafted(recipe_id: String, result_id: String, count: int)
 signal crafting_started(recipe_id: String, total_time: float)
@@ -26,7 +30,7 @@ var _craft_duration: float = 0.0
 var _nearby_stations: Dictionary = {}  # {"station_type": count}
 
 func _ready() -> void:
-	_realm = get_node("/root/RealmSystem") if has_node("/root/RealmSystem") else RealmSystem.new()
+	_realm = get_node("/root/GameManager/RealmSystem") if has_node("/root/GameManager/RealmSystem") else RealmSystem.new()
 
 func _process(delta: float) -> void:
 	if _is_crafting:
@@ -131,7 +135,7 @@ func _complete_crafting() -> void:
 	crafting_completed.emit(_current_recipe)
 	
 	print("✅ 合成完成！获得 %s × %d" % [
-		RecipeDatabase.get_recipe(_current_recipe).get("name", _pending_result),
+		RecipeDatabase.get_recipe(_current_recipe).get("name") or _pending_result,
 		total_count
 	])
 	

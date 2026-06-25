@@ -78,12 +78,12 @@ class Puzzle:
 
 func _create_puzzle(data: Dictionary) -> Puzzle:
 	var p = Puzzle.new()
-	p.id = data.id
-	p.type = data.type
-	p.description = data.description
-	p.position = data.position
-	p.element = data.get("element", "")
-	p.sequence = data.get("sequence", [])
+	p.id = data.get("id", "")
+	p.type = data.get("type", "")
+	p.description = data.get("description", "")
+	p.position = data.get("position", Vector3.ZERO)
+	p.element = data.get("element") or ""
+	p.sequence = data.get("sequence") or []
 	return p
 
 # ===================== 秘境入口/出口 =====================
@@ -130,18 +130,18 @@ func interact_with_puzzle(puzzle_id: String, interaction_type: String, data: Dic
 
 func _handle_weight_plate(puzzle: Puzzle, data: Dictionary) -> bool:
 	"""重量机关：检测是否有足够的重量压在板上"""
-	var weight = data.get("weight", 0)
+	var weight = data.get("weight") or 0
 	# 玩家站上 = 80，巨石 = 500
 	return weight >= 80
 
 func _handle_element_gate(puzzle: Puzzle, data: Dictionary) -> bool:
 	"""元素门：使用对应法术攻击"""
-	var spell_type = data.get("spell_type", "")
+	var spell_type = data.get("spell_type") or ""
 	return spell_type == puzzle.element
 
 func _handle_match_sequence(puzzle: Puzzle, data: Dictionary) -> bool:
 	"""顺序激活：按五行相生顺序"""
-	var activated_element = data.get("element", "")
+	var activated_element = data.get("element") or ""
 	var expected = puzzle.sequence[puzzle.current_index]
 
 	if activated_element == expected:
@@ -153,8 +153,8 @@ func _handle_match_sequence(puzzle: Puzzle, data: Dictionary) -> bool:
 
 func _handle_light_beam(puzzle: Puzzle, data: Dictionary) -> bool:
 	"""光束折射：调整镜子到正确角度"""
-	var angle = data.get("angle", 0)
-	var correct = data.get("correct_angle", 0)
+	var angle = data.get("angle") or 0
+	var correct = data.get("correct_angle") or 0
 	return abs(angle - correct) < 5.0
 
 # ===================== 谜题完成反馈 =====================
@@ -233,9 +233,9 @@ func get_save_data() -> Dictionary:
 	}
 
 func load_save_data(data: Dictionary) -> void:
-	is_cleared = data.get("is_cleared", false)
-	var solved_ids = data.get("solved_puzzles", [])
+	is_cleared = data.get("is_cleared") or false
+	var solved_ids = data.get("solved_puzzles") or []
 	for p in puzzles:
 		if p.id in solved_ids:
 			p.is_solved = true
-	player_inside = data.get("player_inside", false)
+	player_inside = data.get("player_inside") or false

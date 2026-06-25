@@ -7,24 +7,30 @@ extends Node
 
 class_name BuildingMode
 
+# ==================== 类型预加载 ====================
+const _GhostType = preload("res://scripts/building/building_ghost.gd")
+const _SFXType = preload("res://scripts/building/building_sfx.gd")
+const _SysType = preload("res://scripts/building/building_system.gd")
+const _VisType = preload("res://scripts/building/building_visual.gd")
+
 # ==================== 信号 ====================
 signal building_mode_toggled(active: bool)
 signal block_placed(piece_type: int, position: Vector3)
 signal block_broken(position: Vector3)
 
 # ==================== 子模块 ====================
-var ghost: BuildingGhost
-var sfx: BuildingSFX
+var ghost  # BuildingGhost
+var sfx  # BuildingSFX
 
 # ==================== 引用 ====================
-var _building_system: BuildingSystem
+var _building_system  # BuildingSystem
 var _player: Node3D
 var _camera: Camera3D
 var _inventory: Node
 
 # ==================== 状态 ====================
 var is_building_mode: bool = false
-var _selected_piece_type: int = BuildingSystem.PieceType.WALL
+var _selected_piece_type: int = _SysType.PieceType.WALL
 var _selected_tier: int = 0
 var _selected_item_id: String = ""
 
@@ -49,18 +55,18 @@ func _ready() -> void:
 	_building_system = _resolve_building_system()
 	
 	# 初始化子模块
-	ghost = BuildingGhost.new()
+	ghost = _GhostType.new()
 	ghost.grid_size = grid_size
 	ghost.ghost_alpha = 0.4
 	ghost.setup(self)
 	
-	sfx = BuildingSFX.new()
+	sfx = _SFXType.new()
 	add_child(sfx)
 
-func _resolve_building_system() -> BuildingSystem:
+func _resolve_building_system():  # -> BuildingSystem
 	var gm = get_node("/root/GameManager") if has_node("/root/GameManager") else null
 	if gm and gm.has_node("BuildingSystem"):
-		return gm.get_node("BuildingSystem") as BuildingSystem
+		return gm.get_node("BuildingSystem")
 	return null
 
 # ==================== 建造模式开关 ====================
@@ -78,10 +84,10 @@ func _enter_building_mode(player: Node3D, camera: Camera3D) -> void:
 	is_building_mode = true
 	
 	_building_system = _building_system if _building_system else _resolve_building_system()
-	_inventory = get_node("/root/GameManager/Inventory") if has_node("/root/GameManager/Inventory") else null
+	_inventory = get_node("/root/GameManager/InventorySystem") if has_node("/root/GameManager/InventorySystem") else null
 	
 	# 确保方块容器存在
-	BuildingVisual.ensure_container(self)
+	_VisType.ensure_container(self)
 	
 	# 默认选中
 	_auto_select_building()
@@ -166,11 +172,11 @@ func try_place() -> bool:
 		return false
 	
 	var result = _building_system.try_place(_selected_piece_type, _selected_tier, _target_pos)
-	if result.get("success", false):
+	if result.get("success") or false:
 		if _inventory:
 			_inventory.remove_item(_selected_item_id, 1)
 		
-		BuildingVisual.create(_selected_piece_type, _selected_tier, _target_pos, self)
+		_VisType.create(_selected_piece_type, _selected_tier, _target_pos, self)
 		sfx.play("place")
 		block_placed.emit(_selected_piece_type, _target_pos)
 		return true
@@ -187,7 +193,7 @@ func start_break() -> void:
 	
 	var piece = _building_system.get_piece_at(_breaking_pos)
 	if not piece.is_empty():
-		var tier = piece.get("tier", 0)
+		var tier = piece.get("tier") or 0
 		break_time = 1.0 + tier * 0.5
 
 func cancel_break() -> void:
@@ -202,9 +208,9 @@ func _do_break() -> void:
 		return
 	
 	var result = _building_system.demolish(_breaking_pos)
-	if result.get("success", false):
-		BuildingVisual.remove_at(_breaking_pos, self)
-		BuildingVisual.spawn_break_particles(_breaking_pos, self)
+	if result.get("success") or false:
+		_VisType.remove_at(_breaking_pos, self)
+		_VisType.spawn_break_particles(_breaking_pos, self)
 		sfx.play("break")
 		block_broken.emit(_breaking_pos)
 
@@ -217,7 +223,7 @@ func select_building(piece_type: int, item_id: String) -> void:
 	if _inventory:
 		var item_data = _inventory.get_item_data(item_id)
 		if item_data:
-			_selected_tier = item_data.get("tier", 0)
+			_selected_tier = item_data.get("tier") or 0
 	
 	ghost.update_shape(piece_type)
 
@@ -227,11 +233,11 @@ func _auto_select_building() -> void:
 	
 	for i in range(_inventory.get_slot_count()):
 		var slot = _inventory.get_slot(i)
-		if slot and not slot.item_id.is_empty():
-			var item_data = _inventory.get_item_data(slot.item_id)
+		if slot and not slot.get("item_id", "").is_empty():
+			var item_data = _inventory.get_item_data(slot.get("item_id", ""))
 			if item_data and item_data.get("category", -1) == ItemDatabase.ItemCategory.BUILDING:
-				var piece_type = item_data.get("piece_type", BuildingSystem.PieceType.WALL)
-				select_building(piece_type, slot.item_id)
+				var piece_type = item_data.get("piece_type") or _SysType.PieceType.WALL
+				select_building(piece_type, slot.get("item_id", ""))
 				return
 
 # ==================== 鼠标输入 ====================
@@ -259,8 +265,8 @@ func _cycle_building(forward: bool) -> void:
 	var building_items: Array[Dictionary] = []
 	for i in range(_inventory.get_slot_count()):
 		var slot = _inventory.get_slot(i)
-		if slot and not slot.item_id.is_empty():
-			var item_data = _inventory.get_item_data(slot.item_id)
+		if slot and not slot.get("item_id", "").is_empty():
+			var item_data = _inventory.get_item_data(slot.get("item_id", ""))
 			if item_data and item_data.get("category", -1) == ItemDatabase.ItemCategory.BUILDING:
 				building_items.append({"slot": slot, "data": item_data})
 	
@@ -269,7 +275,7 @@ func _cycle_building(forward: bool) -> void:
 	
 	var current_idx = -1
 	for i in range(building_items.size()):
-		if building_items[i].slot.item_id == _selected_item_id:
+		if building_items[i].slot.get("item_id", "") == _selected_item_id:
 			current_idx = i
 			break
 	
@@ -279,8 +285,8 @@ func _cycle_building(forward: bool) -> void:
 		current_idx = (current_idx - 1 + building_items.size()) % building_items.size()
 	
 	var target = building_items[current_idx]
-	var piece_type = target.data.get("piece_type", BuildingSystem.PieceType.WALL)
-	select_building(piece_type, target.slot.item_id)
+	var piece_type = target.data.get("piece_type") or _SysType.PieceType.WALL
+	select_building(piece_type, target.slot.get("item_id", ""))
 
 # ==================== 公共接口 ====================
 
@@ -303,5 +309,5 @@ func get_selected_info() -> Dictionary:
 		"break_progress": _break_progress if _is_breaking else 0.0,
 	}
 
-func get_building_system() -> BuildingSystem:
+func get_building_system():  # -> BuildingSystem
 	return _building_system

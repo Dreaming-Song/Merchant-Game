@@ -61,8 +61,6 @@ const CATEGORY_DISPLAY: Dictionary = {
 # ==================== 初始化 ====================
 func _ready() -> void:
 	_crafting_system = get_node("/root/GameManager/CraftingSystem") if has_node("/root/GameManager/CraftingSystem") else null
-	if not _crafting_system:
-		_crafting_system = get_node("/root/CraftingSystem")
 	
 	# 连接按钮
 	if craft_button:
@@ -126,7 +124,7 @@ func _refresh_category_tabs() -> void:
 	var recipes = _get_filtered_recipes()
 	var categories: Array[String] = ["all"]
 	for r in recipes:
-		var cat = r.get("category", r.data.get("category", "material"))
+		var cat = r.get("category", r.data.get("category") or "material")
 		if cat not in categories:
 			categories.append(cat)
 	
@@ -155,7 +153,7 @@ func _refresh_recipes() -> void:
 	
 	# 过滤分类
 	if _current_category != "all":
-		recipes = recipes.filter(func(r): return r.get("category", r.data.get("category", "")) == _current_category)
+		recipes = recipes.filter(func(r): return r.get("category", r.data.get("category") or "") == _current_category)
 	
 	if recipes.size() == 0:
 		var empty_label = Label.new()
@@ -181,10 +179,10 @@ func _create_recipe_slot(recipe: Dictionary) -> Button:
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	
 	var r = recipe.data if recipe.has("data") else recipe
-	var rid = recipe.id if recipe.has("id") else recipe.get("rid", "")
+	var rid = recipe.id if recipe.has("id") else recipe.get("rid") or ""
 	
 	# 图标（用Emoji代替）
-	var icon = CATEGORY_ICONS.get(r.get("category", ""), "📦")
+	var icon = CATEGORY_ICONS.get(r.get("category") or "", "📦")
 	var icon_label = Label.new()
 	icon_label.text = icon
 	icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -193,7 +191,7 @@ func _create_recipe_slot(recipe: Dictionary) -> Button:
 	
 	# 名称
 	var name_label = Label.new()
-	name_label.text = r.get("name", "未知")
+	name_label.text = r.get("name") or "未知"
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.add_theme_font_size_override("font_size", 11)
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -231,11 +229,11 @@ func _on_recipe_selected(recipe_id: String, recipe: Dictionary) -> void:
 	
 	recipe_detail.visible = true
 	
-	var r = recipe.get("data", recipe)
+	var r = recipe.get("data") or recipe
 	
 	# 显示名称
 	if result_name:
-		result_name.text = r.get("name", "未知")
+		result_name.text = r.get("name") or "未知"
 	
 	# 显示材料
 	if material_container:
@@ -248,7 +246,7 @@ func _on_recipe_selected(recipe_id: String, recipe: Dictionary) -> void:
 			var has = _get_item_count(mat_id)
 			var hbox = HBoxContainer.new()
 			
-			var icon = CATEGORY_ICONS.get(r.get("category", ""), "📦")
+			var icon = CATEGORY_ICONS.get(r.get("category") or "", "📦")
 			var mat_name_label = Label.new()
 			mat_name_label.text = "%s %s" % [icon, mat_id]
 			mat_name_label.custom_minimum_size = Vector2(120, 0)
@@ -278,7 +276,7 @@ func _on_craft_pressed() -> void:
 		return
 	
 	var result = _crafting_system.craft(_selected_recipe, 1)
-	if result.get("success", false):
+	if result.get("success") or false:
 		# 显示进度条
 		if progress_bar:
 			progress_bar.visible = true
@@ -289,7 +287,7 @@ func _on_craft_pressed() -> void:
 		craft_button.disabled = true
 		craft_button.text = "⏳ 合成中"
 	else:
-		print("⚠️ 合成失败: %s" % result.get("reason", "未知原因"))
+		print("⚠️ 合成失败: %s" % result.get("reason") or "未知原因")
 
 func _clear_detail() -> void:
 	if recipe_detail:

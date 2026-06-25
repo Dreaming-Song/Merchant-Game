@@ -24,7 +24,7 @@ extends Node
 ##   HandHoldManager.release_follower(target_id)  → 松开后面的人
 ##   HandHoldManager.release_all()               → 全部松开
 
-class_name HandHoldManager
+# class_name HandHoldManager — 已通过 autoload 注册
 
 # ==================== 信号 ====================
 signal hold_requested(from_id: String, from_name: String)
@@ -65,7 +65,7 @@ var _thread_material: Material = null
 
 func _ready() -> void:
 	# 自注册
-	if not get_node("/root/HandHoldManager"):
+	if not has_node("/root/HandHoldManager"):
 		var root = get_tree().root
 		if root and not root.has_node("HandHoldManager"):
 			root.add_child(self)

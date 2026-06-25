@@ -6,8 +6,16 @@ extends Node
 ## 2. 管理游戏状态（运行中/暂停/存档）
 ## 3. 连接子系统间的信号通道
 ## 4. 全局游戏循环 tick
+const RealmSystem = preload("res://scripts/cultivation/realm_system.gd")
+const CultivationSystem = preload("res://scripts/combat/cultivation_system.gd")
+const InventorySystem = preload("res://scripts/inventory/inventory_system.gd")
+const CraftingSystem = preload("res://scripts/crafting/crafting_system.gd")
+const BuildingSystem = preload("res://scripts/building/building_system.gd")
+const SkillManager = preload("res://scripts/combat/skill_manager.gd")
+const MapGenerator = preload("res://scripts/world/map_generator.gd")
+const WorkstationStation = preload("res://scripts/building/workstation_station.gd")
 
-class_name GameManager
+# class_name GameManager — 已通过 autoload 注册
 
 # ==================== 游戏状态 ====================
 enum GameState {
@@ -39,7 +47,7 @@ var player: Node3D
 signal game_state_changed(old_state: int, new_state: int)
 signal game_initialized()
 signal day_night_changed(is_day: bool, time: float)
-signal player_died()
+signal player_died(death_position: Vector3)
 signal world_loaded(world_data: Dictionary)
 
 func _ready() -> void:
@@ -132,13 +140,61 @@ func set_player(player_node: Node3D) -> void:
 	player_died.connect(_on_player_died)  # 🔧 L5: 连接死亡信号
 	print("👤 玩家引用注入完成")
 
-func _on_player_died() -> void:
-	print("💀 玩家阵亡，存档丢失！")
+func _on_player_died(death_position: Vector3) -> void:
+	print("💀 玩家阵亡！位置: (%d, %d, %d)" % [death_position.x, death_position.y, death_position.z])
+	
 	# 死亡惩罚：掉一半修行点数
 	if cultivation:
 		var lost = cultivation.cultivation_points / 2
 		cultivation.cultivation_points -= lost
 		print("  失去 %d 修行点数" % lost)
+	
+	# 🎒 死亡掉物：背包非装备格随机掉 50%
+	_drop_items_on_death(death_position)
+
+# ==================== 死亡掉落（完整版） ====================
+
+## 死亡时掉落全部非魂器物品
+func _drop_items_on_death(death_position: Vector3) -> void:
+	if not inventory:
+		return
+	
+	# 同步背包魂器状态
+	inventory.sync_backpack_soul_mark()
+	
+	# 收集死亡掉落物（非魂器自动移除）
+	var drops = inventory.collect_death_drop_items()
+	
+	if drops.is_empty():
+		print("  🛡️ 所有物品受魂器保护，没有掉落")
+		return
+	
+	print("  💀 掉落 %d 种物品" % drops.size())
+	for d in drops:
+		print("    - %s ×%d" % [d.item_id, d.count])
+	
+	# 在死亡位置生成掉落物实体
+	_spawn_death_loot(death_position, drops)
+
+## 在死亡位置生成战利品实体
+func _spawn_death_loot(pos: Vector3, items: Array[Dictionary]) -> void:
+	if items.is_empty():
+		return
+	
+	print("🪦 在 (%.0f, %.0f, %.0f) 留下了 %d 种物品" % [pos.x, pos.y, pos.z, items.size()])
+	
+	# 委托 WorldManager 生成掉落物拾取实体
+	var wm = get_node_or_null("/root/WorldManager")
+	if wm and wm.has_method("spawn_item_pile"):
+		wm.spawn_item_pile(pos, items)
+	else:
+		print("  ⚠️ WorldManager.spawn_item_pile() 不存在，物品保存在 Engine meta 中")
+		if Engine.has_meta("pending_death_loot"):
+			var existing = Engine.get_meta("pending_death_loot") as Array
+			existing.append({"pos": pos, "items": items})
+			Engine.set_meta("pending_death_loot", existing)
+		else:
+			Engine.set_meta("pending_death_loot", [{"pos": pos, "items": items}])
 
 # ==================== 游戏生命周期 ====================
 
@@ -151,7 +207,7 @@ func start_new_game() -> void:
 	world_loaded.emit(world_data)
 	
 	# 设置出生点
-	var spawn = world_data.get("spawn_point", Vector3(0, 1, 0))
+	var spawn = world_data.get("spawn_point") or Vector3(0, 1, 0)
 	print("🌍 世界生成完毕，出生点: (%d, %d, %d)" % [spawn.x, spawn.y, spawn.z])
 	
 	# 初始背包：送一套新手装备
@@ -204,15 +260,15 @@ func save_game() -> bool:
 	var player_data = {
 		"_delta_time": 0.0,
 		"_player_count": 1,
-		"inventory": save_data.inventory,
-		"realm": save_data.realm,
-		"cultivation": save_data.cultivation,
+		"inventory": save_data.get("inventory", {}),
+		"realm": save_data.get("realm", {}),
+		"cultivation": save_data.get("cultivation", {}),
 	}
 	
 	var world_state = {
 		"game_time": game_time,
-		"world_seed": save_data.world_seed,
-		"building": save_data.building,
+		"world_seed": save_data.get("world_seed", 0),
+		"building": save_data.get("building", {}),
 	}
 	
 	if wm.save_system and wm.save_system.has_method("save_world"):
@@ -244,7 +300,7 @@ func load_game() -> bool:
 	var player_data = data.get("player_data", {})
 	var world_state = data.get("world_state", {})
 	
-	game_time = world_state.get("game_time", 0.0)
+	game_time = world_state.get("game_time") or 0.0
 	
 	if map_gen:
 		var meta = data.get("meta", {})
@@ -252,16 +308,16 @@ func load_game() -> bool:
 	
 	# 恢复各系统
 	if realm and player_data.has("realm"):
-		realm.load_save_data(player_data.realm)
+		realm.load_save_data(player_data.get("realm", {}))
 	if cultivation and player_data.has("cultivation"):
-		cultivation.load_save_data(player_data.cultivation)
+		cultivation.load_save_data(player_data.get("cultivation", {}))
 	if inventory and player_data.has("inventory"):
-		inventory.load_save_data(player_data.inventory)
+		inventory.load_save_data(player_data.get("inventory", {}))
 	if building and world_state.has("building"):
-		building.load_save_data(world_state.building)
+		building.load_save_data(world_state.get("building", {}))
 	
 	# 恢复玩家位置
-	var pos = player_data.get("player_pos", [0, 5, 0])
+	var pos = player_data.get("player_pos") or [0, 5, 0]
 	var player = get_tree().get_first_node_in_group("player")
 	if player:
 		player.global_position = Vector3(pos[0], pos[1], pos[2])
@@ -280,6 +336,9 @@ func _on_realm_changed(old_realm: int, new_realm: int, name: String) -> void:
 		var unlocks = realm.get_current_unlocks()
 		for unlock in unlocks:
 			print("  解锁: %s" % unlock)
+	
+	# 🔧 Phase4: 播放突破动画演出
+	_play_breakthrough_cutscene(name, new_realm)
 
 func _on_inventory_changed(slot: int, item_id: String, count: int) -> void:
 	pass  # HUD 会更新
@@ -291,6 +350,21 @@ func _on_item_crafted(recipe_id: String, result_id: String, count: int) -> void:
 func _on_piece_placed(piece_id: String, piece_type: int, tier: int, pos: Vector3) -> void:
 	pass  # 更新世界数据
 
+# ==================== 🔧 Phase4: 突破动画 ====================
+
+func _play_breakthrough_cutscene(realm_name: String, realm_level: int) -> void:
+	"""触发突破动画演出"""
+	# 延迟一帧确保其他系统先更新
+	await get_tree().process_frame
+	
+	var cutscene = preload("res://scripts/effects/breakthrough_cutscene.gd").new()
+	cutscene.name = "BreakthroughCutscene"
+	get_tree().current_scene.add_child(cutscene)
+	cutscene.play_breakthrough(realm_name, realm_level, func():
+		cutscene.queue_free()
+		print("🎬 突破动画结束")
+	)
+
 # ==================== 玩家操作入口 ====================
 
 ## 采集资源
@@ -300,15 +374,15 @@ func gather_resource(resource_id: String, count: int = 1) -> void:
 		return
 	
 	# 检查工具
-	if item_data.get("gatherable", false):
-		var needed_tool = item_data.get("gather_tool", "hand")
-		var needed_tier = item_data.get("gather_tier", 0)
+	if item_data.get("gatherable") or false:
+		var needed_tool = item_data.get("gather_tool") or "hand"
+		var needed_tier = item_data.get("gather_tier") or 0
 		var equipped_tool = inventory.get_equipped_tool()
 		var tool_tier = ItemDatabase.get_tier(equipped_tool)
 		
 		if tool_tier < needed_tier:
 			print("⚠️ 需要更高级的工具采集 %s（需%d级，当前%d级）" % 
-				[item_data.name, needed_tier, tool_tier])
+				[item_data.get("name", "?"), needed_tier, tool_tier])
 			return
 		
 		# 消耗工具耐久
@@ -324,7 +398,7 @@ func gather_resource(resource_id: String, count: int = 1) -> void:
 		var xp_gained = count * 2
 		realm.add_cultivation_xp(xp_gained)
 		cultivation.add_cultivation_xp(xp_gained)
-		print("🌿 采集 %s × %d (+%d修为)" % [item_data.name, added, xp_gained])
+		print("🌿 采集 %s × %d (+%d修为)" % [item_data.get("name", "?"), added, xp_gained])
 
 func _find_equipped_tool_slot() -> int:
 	var tool_id = inventory.get_equipped_tool()
@@ -332,27 +406,27 @@ func _find_equipped_tool_slot() -> int:
 		return -1
 	for i in range(inventory.get_all_slots().size()):
 		var slot = inventory.get_slot(i)
-		if slot.item_id == tool_id and slot.count > 0:
+		if slot.get("item_id", "") == tool_id and slot.get("count", 0) > 0:
 			return i
 	return -1
 
 ## 建造建筑（支持工作站放置）
 func place_building(item_id: String, position: Vector3) -> Dictionary:
 	var item_data = ItemDatabase.get_item(item_id)
-	if not item_data.get("buildable", false) and not item_data.get("placeable", false):
+	if not item_data.get("buildable") or false and not item_data.get("placeable") or false:
 		return {"success": false, "reason": "该物品不可放置"}
 	
 	# 消耗背包中的建筑块
 	if not inventory.has_item(item_id, 1):
 		return {"success": false, "reason": "材料不足"}
 	
-	var piece_type = item_data.get("piece_type", 0)
-	var piece_tier = item_data.get("piece_tier", 0)
+	var piece_type = item_data.get("piece_type") or 0
+	var piece_tier = item_data.get("piece_tier") or 0
 	var result: Dictionary
 	
 	# ---- DST/Terraria风格：工作站类型检测 ----
 	# 检查物品是否是工作站（category=station 或 result 命中工作站配方）
-	var category = item_data.get("category", "")
+	var category = item_data.get("category") or ""
 	var is_station = (category == "station")
 	
 	if is_station:
@@ -363,10 +437,10 @@ func place_building(item_id: String, position: Vector3) -> Dictionary:
 		# 普通建筑块
 		result = building.try_place(piece_type, piece_tier, position)
 	
-	if result.get("success", false):
+	if result.get("success") or false:
 		inventory.remove_item(item_id, 1)
 	else:
-		print("❌ 放置失败: %s" % result.get("reason", "未知"))
+		print("❌ 放置失败: %s" % result.get("reason") or "未知")
 	
 	return result
 
@@ -374,7 +448,7 @@ func place_building(item_id: String, position: Vector3) -> Dictionary:
 func _get_station_type(item_id: String) -> int:
 	# 先用 ItemDatabase 的 place_type 字段匹配
 	var item_data = ItemDatabase.get_item(item_id)
-	var place_type = item_data.get("place_type", "")
+	var place_type = item_data.get("place_type") or ""
 	if not place_type.is_empty():
 		return WorkstationStation.get_station_type_from_recipe(place_type)
 	
@@ -396,12 +470,13 @@ func craft_item(recipe_id: String, count: int = 1) -> Dictionary:
 ## 使用物品
 func use_item(slot_index: int) -> Dictionary:
 	var result = inventory.use_item(slot_index)
-	if result.get("success", false):
+	if result.get("success") or false:
 		var effects = result.get("effects", {})
 		# 🔧 B1: 用 .get() 替代点号语法
-		var hp_restore = effects.get("hp_restore", 0)
-		var mp_restore = effects.get("mp_restore", 0)
-		var breakthrough_boost = effects.get("breakthrough_boost", 0)
+		var hp_restore = effects.get("hp_restore") or 0
+		var mp_restore = effects.get("mp_restore") or 0
+		var hunger_restore = effects.get("hunger_restore") or 0
+		var breakthrough_boost = effects.get("breakthrough_boost") or 0
 		
 		if hp_restore > 0:
 			print("💚 恢复 %d 生命" % hp_restore)
@@ -412,6 +487,10 @@ func use_item(slot_index: int) -> Dictionary:
 			print("💙 恢复 %d 法力" % mp_restore)
 			if skill_manager and skill_manager.has_method("restore_mp"):
 				skill_manager.restore_mp(mp_restore)
+		if hunger_restore > 0:
+			print("🍖 恢复 %d 饥饿" % hunger_restore)
+			if player and player.has_method("eat"):
+				player.eat(hunger_restore)
 		if breakthrough_boost > 0:
 			var xp = breakthrough_boost * 500
 			realm.add_cultivation_xp(xp)
@@ -422,9 +501,88 @@ func use_item(slot_index: int) -> Dictionary:
 func invest_cultivation(school_type: int, levels: int = 1) -> bool:
 	return cultivation.invest_in_school(school_type, levels)
 
-## 尝试境界突破
+## 尝试境界突破（支持雷劫触发）
 func try_breakthrough() -> bool:
-	return realm.try_breakthrough(
+	var result = realm.try_breakthrough(
 		func(_item, _count): return inventory.has_item(_item, _count),
-		func(_item, _count): inventory.remove_item(_item, _count)  # 🔧 B4: 消耗突破材料
+		func(_item, _count): inventory.remove_item(_item, _count)
 	)
+	
+	if result is String and result == "tribulation":
+		# ⚡ 需要渡劫！启动雷劫管理器
+		_start_tribulation()
+		return true  # 告诉调用方"已处理"
+	
+	return result
+
+## ⚡ 启动渡劫流程
+func _start_tribulation() -> void:
+	"""创建雷劫管理器实例并挂载到场景"""
+	var player = get_tree().get_first_node_in_group("player")
+	if not player:
+		print("❌ 没有玩家，无法开始渡劫")
+		return
+	
+	var current_realm = realm.current_realm
+	var target_realm = current_realm + 1
+	var target_name = RealmSystem.get_realm_name(target_realm)
+	
+	# 消耗突破材料（渡劫成功后才会真正突破）
+	var data = RealmSystem.get_realm_data(current_realm)
+	for req in data.get("breakthrough_items") or []:
+		inventory.remove_item(req.item, req.count)
+	
+	# 创建雷劫管理器（CanvasLayer，覆盖全屏）
+	var tribulation = preload("res://scripts/effects/tribulation_manager.gd").new(player, current_realm, target_realm, target_name)
+	var scene_root = get_tree().current_scene
+	scene_root.add_child(tribulation)
+	
+	# 先给玩家一点反应时间
+	await get_tree().create_timer(1.0).timeout
+	
+	# 连接完成/失败信号
+	tribulation.tribulation_completed.connect(_on_tribulation_completed.bind(tribulation))
+	tribulation.tribulation_failed.connect(_on_tribulation_failed.bind(tribulation))
+	
+	# 🌩️ 正式启动渡劫！
+	tribulation.start_tribulation()
+	
+	print("""
+╔══════════════════════════════════╗
+║    ⚡ 天劫降临！                      ║
+║    %s → %s              ║
+║   突破材料已消耗，渡劫开始！            ║
+╚══════════════════════════════════╝
+	""" % [RealmSystem.get_realm_name(current_realm), target_name])
+
+## 🎉 渡劫成功回调
+func _on_tribulation_completed(success: bool, rating: String, rewards: Dictionary, tribulation: Node) -> void:
+	"""渡劫成功后，境界已在 TribulationManager 中通过 force_breakthrough 提升"""
+	print("🎉 渡劫成功！评价：%s" % rating)
+	# 播放突破动画
+	var new_realm = realm.current_realm
+	var name = RealmSystem.get_realm_name(new_realm)
+	_play_breakthrough_cutscene(name, new_realm)
+	
+	# 应用额外奖励（HP/攻击等已在 TribulationManager 中应用）
+	print("📦 渡劫奖励：HP+%d ATK+%d SPD+%.0f%%" % [
+		rewards.get("hp_bonus") or 0, rewards.get("attack_bonus") or 0,
+		rewards.get("speed_bonus") or 0 * 100
+	])
+
+## 💀 渡劫失败回调
+func _on_tribulation_failed(reason: String, tribulation: Node) -> void:
+	"""渡劫失败 — 施加惩罚"""
+	print("💀 渡劫失败：%s" % reason)
+	
+	# 修为倒退至当前境界50%
+	var current_xp = realm.cultivation_xp
+	realm.cultivation_xp = int(current_xp * 0.5)
+	realm.breakthrough_progress = 0.0
+	
+	# 临时Debuff（走游戏中时间系统）
+	var player = get_tree().get_first_node_in_group("player")
+	if player:
+		player.set_meta("tribulation_debuff_time", 86400.0)  # 24小时（游戏时间）
+		player.set_meta("tribulation_debuff_xp_rate", 0.7)  # 修炼效率-30%
+		print("💔 道心受创！修炼效率-30%，持续24小时")

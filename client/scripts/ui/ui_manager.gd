@@ -1,4 +1,11 @@
 extends CanvasLayer
+
+const BuildingSystem = preload("res://scripts/building/building_system.gd")
+const WorkstationStation = preload("res://scripts/building/workstation_station.gd")
+
+# ==================== 焦点方向常量 ====================
+enum { FOCUS_UP, FOCUS_DOWN, FOCUS_LEFT, FOCUS_RIGHT }
+
 ## UI主管理器 — 管理所有界面面板的打开/关闭/切换
 ##
 ## 快捷键映射：
@@ -10,25 +17,35 @@ extends CanvasLayer
 ##   ESC — 暂停菜单
 ##   H — 帮助/教程
 
-class_name UIManager
+# class_name UIManager — 已通过 autoload 注册
+
+# ==================== 所有装备槽位（用于背包UI预渲染） ====================
+## 顺序决定显示顺序
+const ALL_EQUIP_SLOTS: Array[String] = [
+	"weapon", "tool",
+	"helmet", "armor", "legs", "boots",
+	"ring", "amulet", "belt", "bracelet",
+	"backpack", "transport",
+]
 
 # ==================== 面板引用 ====================
 @onready var hud: Control = $HUD
 @onready var inventory_panel: Control = $InventoryPanel
 @onready var crafting_panel: Control = $CraftingPanel
 @onready var cultivation_panel: Control = $CultivationPanel
-@onready var building_panel: Control = $BuildingPanel if has_node("BuildingPanel") else _create_building_panel()
+@onready var building_panel: Control = get_node_or_null("BuildingPanel") if has_node("BuildingPanel") else _create_building_panel()
 @onready var building_mode: Node = null  # 由 _ready 从 PlayerController 获取引用
 @onready var map_panel: Control = $MapPanel
 @onready var pause_menu: Control = $PauseMenu
-@onready var settings_panel: Control = $SettingsPanel if has_node("SettingsPanel") else _create_settings_panel()
+@onready var settings_panel: Control = get_node_or_null("SettingsPanel") if has_node("SettingsPanel") else _create_settings_panel()
 @onready var help_panel: Control = $HelpPanel
 @onready var dialog_panel: Control = $DialogPanel
-@onready var dialogue_panel_script: Node = $DialoguePanel if has_node("DialoguePanel") else _create_dialogue_panel()
-@onready var chat_panel: Control = $ChatPanel if has_node("ChatPanel") else _create_chat_panel()
-@onready var player_interaction_menu: Control = $PlayerInteractionMenu if has_node("PlayerInteractionMenu") else _create_interaction_menu()
-@onready var emote_wheel: Control = $EmoteWheel if has_node("EmoteWheel") else _create_emote_wheel()
-@onready var block_selector: Control = $BlockSelector if has_node("BlockSelector") else _create_block_selector()
+@onready var dialogue_panel_script: Node = get_node_or_null("DialoguePanel") if has_node("DialoguePanel") else _create_dialogue_panel()
+@onready var chat_panel: Control = get_node_or_null("ChatPanel") if has_node("ChatPanel") else _create_chat_panel()
+@onready var player_interaction_menu: PopupMenu = get_node_or_null("PlayerInteractionMenu") if has_node("PlayerInteractionMenu") else _create_interaction_menu()
+@onready var emote_wheel: Control = get_node_or_null("EmoteWheel") if has_node("EmoteWheel") else _create_emote_wheel()
+@onready var block_selector: Control = get_node_or_null("BlockSelector") if has_node("BlockSelector") else _create_block_selector()
+@onready var soul_forge_panel: Control = get_node_or_null("SoulForgePanel") if has_node("SoulForgePanel") else _create_soul_forge_panel()
 
 # ==================== 打开面板 ====================
 var _open_panels: Array[String] = []  # 已打开的面板名栈
@@ -54,7 +71,10 @@ func _ready() -> void:
 		emote_wheel.visible = false
 	
 	# 获取建造模式引用（由 PlayerController 创建）
-	var player = get_node("/root/GameManager/Player") if has_node("/root/GameManager/Player") else null
+	var player = get_node("/root/Main/Player") if has_node("/root/Main/Player") else null
+	if not player:
+		var gm = get_node("/root/GameManager") if has_node("/root/GameManager") else null
+		player = gm.player if gm else null
 	if player and player.has_node("BuildingMode"):
 		building_mode = player.get_node("BuildingMode")
 	
@@ -146,7 +166,16 @@ func open_panel(panel_name: String) -> void:
 		"inventory":
 			_hide_all_except("inventory")
 			inventory_panel.visible = true
+			# 连接装备变更信号（只连一次）
+			var gm = get_node("/root/GameManager")
+			if gm and gm.inventory and not gm.inventory.equipment_changed.is_connected(_on_equipment_changed):
+				gm.inventory.equipment_changed.connect(_on_equipment_changed)
 			_inventory_show()
+			
+		"soul_forge":
+			_hide_all_except("soul_forge")
+			soul_forge_panel.visible = true
+			soul_forge_panel.open_for_station(-1)
 			
 		"crafting":
 			_hide_all_except("crafting")
@@ -196,6 +225,8 @@ func close_panel(panel_name: String) -> void:
 	match panel_name:
 		"inventory":
 			inventory_panel.visible = false
+		"soul_forge":
+			soul_forge_panel.visible = false
 		"crafting":
 			crafting_panel.visible = false
 		"cultivation":
@@ -230,16 +261,26 @@ func _close_all() -> void:
 	for panel in _open_panels.duplicate():
 		close_panel(panel)
 	
-	inventory_panel.visible = false
-	crafting_panel.visible = false
-	cultivation_panel.visible = false
-	building_panel.visible = false
-	map_panel.visible = false
-	pause_menu.visible = false
-	settings_panel.visible = false
-	help_panel.visible = false
-	dialog_panel.visible = false
-	dialogue_panel_script.visible = false
+	if is_instance_valid(inventory_panel):
+		inventory_panel.visible = false
+	if is_instance_valid(crafting_panel):
+		crafting_panel.visible = false
+	if is_instance_valid(cultivation_panel):
+		cultivation_panel.visible = false
+	if is_instance_valid(building_panel):
+		building_panel.visible = false
+	if is_instance_valid(map_panel):
+		map_panel.visible = false
+	if is_instance_valid(pause_menu):
+		pause_menu.visible = false
+	if is_instance_valid(settings_panel):
+		settings_panel.visible = false
+	if is_instance_valid(help_panel):
+		help_panel.visible = false
+	if is_instance_valid(dialog_panel):
+		dialog_panel.visible = false
+	if is_instance_valid(dialogue_panel_script):
+		dialogue_panel_script.visible = false
 	if chat_panel:
 		chat_panel.visible = false
 	if player_interaction_menu:
@@ -318,13 +359,55 @@ func _inventory_show() -> void:
 		var slot_btn = _create_slot_button(i, slot)
 		slot_container.add_child(slot_btn)
 	
-	# 更新装备
+	# 更新装备 — 显示全部已知槽位（含空）
 	var equip = gm.inventory.get_equipment()
-	for slot_name in equip.keys():
-		var equip_slot = inventory_panel.get_node("EquipSlots/%s" % slot_name)
-		if equip_slot:
+	var equip_container = inventory_panel.get_node("EquipSlots")
+	if not equip_container:
+		equip_container = _ensure_equip_slots_container()
+	
+	for slot_name in ALL_EQUIP_SLOTS:
+		var equip_slot = equip_container.get_node_or_null(slot_name)
+		if not equip_slot:
+			equip_slot = _create_equip_slot(slot_name, equip_container)
+		
+		if equip.has(slot_name):
 			var item = ItemDatabase.get_item(equip[slot_name])
-			equip_slot.text = item.get("name", "")
+			equip_slot.text = item.get("name") or "(?)"
+			equip_slot.tooltip_text = item.get("desc") or ""
+			equip_slot.modulate = Color.WHITE
+		else:
+			var slot_label = slot_name.capitalize()
+			equip_slot.text = "❌ %s（空）" % slot_label
+			equip_slot.tooltip_text = "此处未装备"
+			equip_slot.modulate = Color(0.5, 0.5, 0.5, 0.7)
+
+## 装备变更时刷新UI
+func _on_equipment_changed(slot: String, item_id: String) -> void:
+	"""当背包打开时，装备变更自动刷新装备面板"""
+	if inventory_panel and inventory_panel.visible:
+		_inventory_show()
+
+func _ensure_equip_slots_container() -> Control:
+	"""确保 EquipSlots 容器存在"""
+	var container = inventory_panel.get_node_or_null("EquipSlots")
+	if container:
+		return container
+	container = VBoxContainer.new()
+	container.name = "EquipSlots"
+	container.size = Vector2(200, 400)
+	container.position = Vector2(10, 10)
+	inventory_panel.add_child(container)
+	return container
+
+func _create_equip_slot(slot_name: String, parent: Control) -> Button:
+	"""动态创建装备槽UI按钮"""
+	var btn = Button.new()
+	btn.name = slot_name
+	btn.text = slot_name.capitalize()
+	btn.size = Vector2(180, 30)
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	parent.add_child(btn)
+	return btn
 
 func _crafting_show() -> void:
 	"""刷新合成面板 — DST/Terraria风格：靠近工作站自动过滤"""
@@ -362,7 +445,7 @@ func _crafting_show() -> void:
 		
 		for recipe in available[station]:
 			var btn = Button.new()
-			btn.text = "%s — %s" % [recipe.data.name, _format_materials(recipe.data.materials)]
+			btn.text = "%s — %s" % [recipe.data.get("name", "配方"), _format_materials(recipe.data.get("materials", {}))]
 			btn.pressed.connect(_on_craft_btn.bind(recipe.id))
 			container.add_child(btn)
 
@@ -415,7 +498,7 @@ func _handle_building_toggle() -> void:
 				_open_panels.erase("building")
 		else:
 			# 进入建造模式
-			var player = get_node("/root/GameManager/Player") if has_node("/root/GameManager/Player") else null
+			var player = get_tree().get_first_node_in_group("player") if get_tree() else null
 			var camera = player.get_node("Camera3D") if player and player.has_node("Camera3D") else null
 			if player and camera:
 				building_mode._enter_building_mode(player, camera)
@@ -424,7 +507,7 @@ func _handle_building_toggle() -> void:
 				
 				# 如果背包里没有自动选中方块，打开选择器
 				var selected = building_mode.get_selected_info()
-				if selected.get("item_id", "").is_empty():
+				if selected.get("item_id") or "".is_empty():
 					_open_block_selector()
 		return
 	
@@ -435,8 +518,8 @@ func _handle_building_toggle() -> void:
 func _open_block_selector() -> void:
 	if not block_selector:
 		return
-	var player = get_node("/root/GameManager/Player") if has_node("/root/GameManager/Player") else null
-	var inventory = get_node("/root/GameManager/Inventory") if has_node("/root/GameManager/Inventory") else null
+	var player = get_tree().get_first_node_in_group("player") if get_tree() else null
+	var inventory = get_node("/root/GameManager/InventorySystem") if has_node("/root/GameManager/InventorySystem") else null
 	var building_sys = get_node("/root/GameManager/BuildingSystem") if has_node("/root/GameManager/BuildingSystem") else null
 	if player and inventory and building_sys and building_mode:
 		block_selector.open(player, inventory, building_sys, building_mode)
@@ -471,7 +554,7 @@ func _map_show() -> void:
 		return
 	
 	var world = gm.world_data
-	var spawn = world.get("spawn_point", Vector3.ZERO)
+	var spawn = world.get("spawn_point") or Vector3.ZERO
 	
 	var map_label = map_panel.get_node("Info")
 	if map_label:
@@ -486,11 +569,11 @@ func _on_craft_btn(recipe_id: String) -> void:
 	var gm = get_node("/root/GameManager")
 	if gm:
 		var result = gm.craft_item(recipe_id)
-		if result.get("success", false):
+		if result.get("success") or false:
 			# 刷新合成面板
 			_crafting_show()
 		else:
-			_show_message(result.get("reason", "合成失败"))
+			_show_message(result.get("reason") or "合成失败")
 
 func _on_invest_btn(school_type: int) -> void:
 	var gm = get_node("/root/GameManager")
@@ -532,6 +615,16 @@ func _clear_grid(container: Control) -> void:
 func focus_station(station_type: int) -> void:
 	var station_id = WorkstationStation.STATION_NAMES.get(station_type, "workbench")
 	
+	# 🆕 魂器锻造台 → 开魂器面板
+	if station_type == WorkstationStation.StationType.SOUL_FORGE:
+		if "soul_forge" in _open_panels:
+			soul_forge_panel.open_for_station(-1)
+		else:
+			open_panel("soul_forge")
+			soul_forge_panel.open_for_station(-1)
+		print("🔮 聚焦魂器锻造台")
+		return
+	
 	# 如果合成面板已打开，刷新
 	if "crafting" in _open_panels:
 		if crafting_panel.has_method("refresh"):
@@ -550,13 +643,13 @@ func _clear_container(container: Control) -> void:
 
 func _create_slot_button(index: int, slot: Dictionary) -> Button:
 	var btn = Button.new()
-	if not slot.item_id.is_empty() and slot.count > 0:
-		var item = ItemDatabase.get_item(slot.item_id)
+	if not slot.get("item_id", "").is_empty() and slot.get("count", 0) > 0:
+		var item = ItemDatabase.get_item(slot.get("item_id", ""))
 		var durability_text = ""
-		if slot.durability > 0 and item.has("durability"):
-			durability_text = " [%d/%d]" % [slot.durability, item.durability]
-		btn.text = "%s ×%d%s" % [item.get("name", slot.item_id), slot.count, durability_text]
-		btn.tooltip_text = item.get("desc", "")
+		if slot.get("durability", 0) > 0 and item.has("durability"):
+			durability_text = " [%d/%d]" % [slot.get("durability", 0), item.get("durability", 0)]
+		btn.text = "%s ×%d%s" % [item.get("name") or slot.get("item_id", ""), slot.get("count", 0), durability_text]
+		btn.tooltip_text = item.get("desc") or ""
 	else:
 		btn.text = ""
 	btn.custom_minimum_size = Vector2(100, 50)
@@ -635,7 +728,7 @@ func _create_chat_panel() -> Control:
 	return panel
 
 ## 🔧 创建玩家交互菜单
-func _create_interaction_menu() -> Control:
+func _create_interaction_menu() -> PopupMenu:
 	var menu = preload("res://scripts/ui/player_interaction_menu.gd").new()
 	menu.name = "PlayerInteractionMenu"
 	add_child(menu)
@@ -651,6 +744,14 @@ func _create_emote_wheel() -> Control:
 	if wheel.has_signal("emote_selected"):
 		wheel.emote_selected.connect(_on_emote_selected)
 	return wheel
+
+## 🔮 创建魂器锻造面板
+func _create_soul_forge_panel() -> Control:
+	var panel = preload("res://scripts/ui/soul_forge_panel.gd").new()
+	panel.name = "SoulForgePanel"
+	panel.visible = false
+	add_child(panel)
+	return panel
 
 ## 🔧 聊天消息发送回调
 func _on_chat_message_sent(message: String) -> void:
@@ -674,5 +775,5 @@ func _on_emote_selected(emote_name: String) -> void:
 		spawner.interact_with_player("", "emote_" + emote_name)
 
 ## 🔧 L7: 检查是否有面板打开（供 PlayerController 判断输入阻断）
-func is_any_panel_open() -> bool:
+func _is_any_panel_open_v2() -> bool:
 	return _open_panels.size() > 0

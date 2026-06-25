@@ -3,8 +3,12 @@ extends Node
 ##
 ## 挂载场景树任意节点，自动管理所有 BOSS 生命周期
 ## 依赖：WorldBoss 类、BiomeManager、POISystem
+const WorldBoss = preload("res://scripts/combat/world_boss.gd")
+const BiomeManager = preload("res://scripts/world/biome_manager.gd")
+const DayNightCycle = preload("res://scripts/world/day_night_cycle.gd")
+const POISystem = preload("res://scripts/world/poi_system.gd")
 
-class_name BossManager
+# class_name BossManager — 已通过 autoload 注册
 
 # ==================== 信号 ====================
 signal boss_spawned(boss_name: String, boss_type: int, location: Vector3)
@@ -12,16 +16,17 @@ signal boss_killed(boss_name: String, boss_type: int, killer_id: String)
 signal boss_despawned(boss_name: String)
 
 # ==================== BOSS 生成配置 ====================
+# 使用 WorldBoss.BossType 整数值，避免编译期跨脚本常量化问题
 const BOSS_SPAWN_CONFIGS: Array[Dictionary] = [
-	{"type": WorldBoss.BossType.AZURE_DRAGON,   "scene": "res://assets/prefabs/boss_azure_dragon.tscn"},
-	{"type": WorldBoss.BossType.WHITE_TIGER,     "scene": "res://assets/prefabs/boss_white_tiger.tscn"},
-	{"type": WorldBoss.BossType.VERMILION_BIRD,  "scene": "res://assets/prefabs/boss_vermilion_bird.tscn"},
-	{"type": WorldBoss.BossType.BLACK_WARRIOR,   "scene": "res://assets/prefabs/boss_black_warrior.tscn"},
-	{"type": WorldBoss.BossType.GOLDEN_QILIN,    "scene": "res://assets/prefabs/boss_golden_qilin.tscn"},
+	{"type": 0,   "scene": "res://assets/prefabs/boss_azure_dragon.tscn"},
+	{"type": 3,     "scene": "res://assets/prefabs/boss_white_tiger.tscn"},
+	{"type": 1,  "scene": "res://assets/prefabs/boss_vermilion_bird.tscn"},
+	{"type": 4,   "scene": "res://assets/prefabs/boss_black_warrior.tscn"},
+	{"type": 2,    "scene": "res://assets/prefabs/boss_golden_qilin.tscn"},
 ]
 
 # ==================== BOSS 状态 ====================
-struct BossStatus:
+class BossStatus:
 	var boss_type: int
 	var instance: WorldBoss           # 场景中的实例（alive时有效）
 	var is_alive: bool
@@ -55,7 +60,7 @@ func _ready() -> void:
 func _initialize_bosses() -> void:
 	"""初始化所有 BOSS 状态"""
 	for config in BOSS_SPAWN_CONFIGS:
-		var bt = config.type
+		var bt = config.get("type", 0)
 		var bconfig = WorldBoss.get_boss_config(bt)
 		
 		var status = BossStatus.new()
@@ -63,16 +68,16 @@ func _initialize_bosses() -> void:
 		status.is_alive = false
 		status.defeat_time = -999.0  # 从未被击败
 		status.respawn_days = _get_respawn_days(bt)
-		status.spawn_position = bconfig.spawn_position
+		status.spawn_position = bconfig.get("spawn_position", Vector3.ZERO)
 		status.notification_sent = false
 		
 		_boss_statuses[bt] = status
 		
-		print("🏯 已注册 %s（%s）" % [bconfig.title, bconfig.name])
+		print("🏯 已注册 %s（%s）" % [bconfig.get("title", ""), bconfig.get("name", "")])
 	
-	# 初始：生成 2 只 BOSS（青龙+麒麟），其余未激活
-	_spawn_boss(WorldBoss.BossType.AZURE_DRAGON)
-	_spawn_boss(WorldBoss.BossType.GOLDEN_QILIN)
+	# 初始：5 只 BOSS 全部激活（各自在对应秘境中）
+	for config in BOSS_SPAWN_CONFIGS:
+		_spawn_boss(config.get("type", 0))
 
 # ==================== BOSS 生成 ====================
 
@@ -93,8 +98,8 @@ func _spawn_boss(boss_type: int) -> WorldBoss:
 	# 用代码创建 BOSS 节点（实际项目用预制体加载）
 	var boss = WorldBoss.new()
 	boss.boss_type = boss_type
-	boss.name = "Boss_%s" % config.name
-	boss.global_position = config.spawn_position
+	boss.name = "Boss_%s" % config.get("name", "")
+	boss.global_position = config.get("spawn_position", Vector3.ZERO)
 	
 	# 多人模式检测
 	var player_count = get_tree().get_nodes_in_group("player").size()
@@ -116,16 +121,16 @@ func _spawn_boss(boss_type: int) -> WorldBoss:
 	
 	# 向全服通告
 	var notification = "🌏【天地异象】五行神兽·%s（%s）已现身于「%s」！" % [
-		config.title, config.name, _get_biome_display_name(config.spawn_biome)
+		config.get("title", ""), config.get("name", ""), _get_biome_display_name(config.get("spawn_biome", ""))
 	]
-	boss_spawned.emit(config.name, boss_type, config.spawn_position)
+	boss_spawned.emit(config.get("name", ""), boss_type, config.get("spawn_position", Vector3.ZERO))
 	print(notification)
 	
 	# 同步到 POI 系统（BOSS 区域作为临时地标）
 	if poi_system:
-		var poi_id = "boss_%s" % config.name
-		poi_system.register_poi(poi_id, config.title, "五行神兽·%s 盘踞之处" % config.name,
-			config.spawn_position, POISystem.POIType.BOSS, 40.0)
+		var poi_id = "boss_%s" % config.get("name", "")
+		poi_system.register_poi(poi_id, config.get("title", ""), "五行神兽·%s 盘踞之处" % config.get("name", ""),
+			config.get("spawn_position", Vector3.ZERO), POISystem.POIType.BOSS, 40.0)
 	
 	return boss
 
@@ -171,7 +176,7 @@ func _on_boss_damaged(boss_name: String, damage: int, current_hp: int, max_hp: i
 	var hp_ratio = float(current_hp) / max_hp
 	if hp_ratio <= 0.25 and not _boss_statuses[boss_type].notification_sent:
 		var config = WorldBoss.get_boss_config(boss_type)
-		print("⚠️ %s 濒临绝境！剩余 %.0f%% 生命值" % [config.name, hp_ratio * 100])
+		print("⚠️ %s 濒临绝境！剩余 %.0f%% 生命值" % [config.get("name", ""), hp_ratio * 100])
 		_boss_statuses[boss_type].notification_sent = true
 		# 但还是要允许再次触发
 		_boss_statuses[boss_type].notification_sent = false
@@ -180,7 +185,7 @@ func _on_boss_phase_changed(boss_name: String, phase: int, boss_type: int) -> vo
 	"""BOSS 阶段转换"""
 	var config = WorldBoss.get_boss_config(boss_type)
 	if phase == 2:
-		var msg = "🔥 %s 进入狂暴状态！技能全面升级！" % config.name
+		var msg = "🔥 %s 进入狂暴状态！技能全面升级！" % config.get("name", "")
 		print(msg)
 
 func _on_boss_defeated(boss_name: String, boss_type: int) -> void:
@@ -198,14 +203,14 @@ func _on_boss_defeated(boss_name: String, boss_type: int) -> void:
 	
 	# 全服通告
 	var msg = "💀💀💀 五行神兽·%s（%s）已被击败！%d天后重生！" % [
-		config.title, config.name, status.respawn_days
+		config.get("title", ""), config.get("name", ""), status.respawn_days
 	]
-	boss_killed.emit(config.name, boss_type, "player")
+	boss_killed.emit(config.get("name", ""), boss_type, "player")
 	print(msg)
 	
 	# 更新 POI 状态
 	if poi_system:
-		var poi_id = "boss_%s" % config.name
+		var poi_id = "boss_%s" % config.get("name", "")
 		# 标记为已攻略
 		poi_system.mark_discovered(poi_id)
 
@@ -233,16 +238,16 @@ func get_all_boss_status() -> Array[Dictionary]:
 		var config = WorldBoss.get_boss_config(bt)
 		result.append({
 			"boss_type": bt,
-			"name": config.name,
-			"title": config.title,
-			"element": config.element,
+			"name": config.get("name", ""),
+			"title": config.get("title", ""),
+			"element": config.get("element", ""),
 			"is_alive": s.is_alive,
 			"hp": s.instance.hp if s.instance and is_instance_valid(s.instance) else 0,
-			"max_hp": config.max_hp,
+			"max_hp": config.get("max_hp", 0),
 			"respawn_days": s.respawn_days,
 			"defeat_day": s.defeat_time,
 			"position": s.spawn_position,
-			"spawn_biome": config.spawn_biome,
+			"spawn_biome": config.get("spawn_biome", ""),
 		})
 	return result
 
@@ -269,3 +274,65 @@ func _get_biome_display_name(biome_key: String) -> String:
 		"swamp":          return "幽暗沼泽"
 		"volcano":        return "灵焰火山"
 	return biome_key
+
+# ==================== 秘境集成 ====================
+
+## 获取 BOSS Key → BossType 映射（整数值）
+const BOSS_KEY_TO_TYPE = {
+	"azure_dragon": 0,
+	"white_tiger": 3,
+	"vermilion_bird": 1,
+	"black_warrior": 4,
+	"golden_qilin": 2,
+}
+
+const BOSS_TYPE_TO_KEY = {
+	0: "azure_dragon",
+	3: "white_tiger",
+	1: "vermilion_bird",
+	4: "black_warrior",
+	2: "golden_qilin",
+}
+
+## 保存秘境中BOSS的竞技场位置
+var _arena_positions: Dictionary = {}  # boss_key -> Vector3
+
+func set_boss_arena_position(boss_key: String, position: Vector3) -> void:
+	"""保存秘境BOSS的竞技场位置"""
+	_arena_positions[boss_key] = position
+
+## 在秘境中生成BOSS（由ArenaManager调用）
+func spawn_boss_in_arena(boss_key: String) -> WorldBoss:
+	var boss_type = BOSS_KEY_TO_TYPE.get(boss_key, -1)
+	if boss_type < 0:
+		print("❌ 未知BOSS key: %s" % boss_key)
+		return null
+	
+	# 检查是否已有活的BOSS实例
+	var status = _boss_statuses.get(boss_type)
+	if status and status.is_alive and status.instance:
+		# 把现有BOSS传送到秘境位置
+		var pos = _arena_positions.get(boss_key, status.spawn_position)
+		status.instance.global_position = pos
+		print("🏯 %s 已被召唤至秘境！" % status.instance.get_boss_name())
+		return status.instance
+	
+	# 生成新的BOSS实例
+	var boss = _spawn_boss(boss_type)
+	if boss:
+		var pos = _arena_positions.get(boss_key, boss.global_position)
+		boss.global_position = pos
+		print("🏯 %s 在秘境中苏醒！" % boss.get_boss_name())
+	return boss
+
+## BOSS在秘境中被击败（重写信号处理）
+func on_boss_defeated_in_arena(boss_type: int) -> void:
+	var boss_key = BOSS_TYPE_TO_KEY.get(boss_type, "")
+	if boss_key.is_empty(): return
+	
+	var arena_manager = get_tree().get_first_node_in_group("arena_manager")
+	if arena_manager:
+		arena_manager.on_boss_defeated(boss_key)
+		arena_manager.start_arena_cooldown(boss_key, 300.0)  # 5分钟冷却
+	
+	print("🏯 【%s】已在秘境中被击败！" % WorldBoss.get_boss_config(boss_type).title)

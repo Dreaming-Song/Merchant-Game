@@ -11,7 +11,7 @@ extends Node
 class_name POISystem
 
 # ==================== 地标数据结构 ====================
-struct POIData:
+class POIData:
 	var id: String
 	var name: String
 	var description: String

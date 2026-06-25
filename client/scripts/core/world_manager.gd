@@ -7,7 +7,7 @@ extends Node
 ##   3. 进入世界 → WorldManager 加载所有数据 → 分发
 ##   4. 离开世界 → WorldManager 保存所有数据
 
-class_name WorldManager
+# class_name WorldManager — 已通过 autoload 注册
 
 signal world_entered(world_name: String)
 signal world_exited(world_name: String)
@@ -78,7 +78,7 @@ func enter_world(name: String) -> bool:
 	_restore_world_state(world_state)
 	
 	# 4. 设置游戏模式
-	_set_game_mode(meta.get("game_mode", "survival"))
+	_set_game_mode(meta.get("game_mode") or "survival")
 	
 	world_entered.emit(name)
 	print("🚪 进入世界: %s (seed=%d)" % [name, seed])
@@ -133,7 +133,7 @@ func _collect_player_data() -> Dictionary:
 func _collect_world_state() -> Dictionary:
 	"""收集世界状态"""
 	return {
-		"game_time": game_manager.get("game_time", 0.0) if game_manager else 0.0,
+		"game_time": game_manager.get("game_time") or 0.0 if game_manager else 0.0,
 	}
 	
 func _restore_player(data: Dictionary) -> void:
@@ -141,27 +141,27 @@ func _restore_player(data: Dictionary) -> void:
 	if not game_manager:
 		return
 	
-	var pos = data.get("player_pos", [0, 5, 0])
+	var pos = data.get("player_pos") or [0, 5, 0]
 	var player = get_tree().get_first_node_in_group("player")
 	if player:
 		player.global_position = Vector3(pos[0], pos[1], pos[2])
 	
 	# 恢复库存/修为等
 	if data.has("inventory") and game_manager.inventory:
-		game_manager.inventory.load_save_data(data.inventory)
+		game_manager.inventory.load_save_data(data.get("inventory"))
 	if data.has("realm") and game_manager.realm:
-		game_manager.realm.load_save_data(data.realm)
+		game_manager.realm.load_save_data(data.get("realm"))
 	if data.has("cultivation") and game_manager.cultivation:
-		game_manager.cultivation.load_save_data(data.cultivation)
+		game_manager.cultivation.load_save_data(data.get("cultivation"))
 
 func _restore_world_state(data: Dictionary) -> void:
 	"""恢复世界状态"""
 	if game_manager:
-		game_manager.game_time = data.get("game_time", 0.0)
+		game_manager.game_time = data.get("game_time") or 0.0
 
 func _set_world_seed(seed: int) -> void:
 	"""设置世界种子（通知 MapGenerator）"""
-	var map_gen = get_node("/root/MapGenerator") if has_node("/root/MapGenerator") else null
+	var map_gen = get_node("/root/GameManager/MapGenerator") if has_node("/root/GameManager/MapGenerator") else null
 	if map_gen and map_gen.has_method("set_seed"):
 		map_gen.set_seed(seed)
 

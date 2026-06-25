@@ -3,6 +3,10 @@
 
 class_name BuildingVisual
 
+# 类型预加载
+const _SysType = preload("res://scripts/building/building_system.gd")
+const _TexType = preload("res://scripts/building/building_textures.gd")
+
 # 方块包围盒容器在场景树中的名称
 const BLOCK_CONTAINER_NAME: String = "BuiltBlocks"
 
@@ -41,20 +45,20 @@ static func _create_collision_shape(piece_type: int) -> CollisionShape3D:
 	var shape := CollisionShape3D.new()
 	
 	match piece_type:
-		BuildingSystem.PieceType.WALL, BuildingSystem.PieceType.DOOR:
+		_SysType.PieceType.WALL, _SysType.PieceType.DOOR:
 			shape.shape = BoxShape3D.new()
 			shape.shape.size = Vector3(1.0, 1.0, 0.15)
-		BuildingSystem.PieceType.FLOOR:
+		_SysType.PieceType.FLOOR:
 			shape.shape = BoxShape3D.new()
 			shape.shape.size = Vector3(1.0, 0.15, 1.0)
-		BuildingSystem.PieceType.FOUNDATION:
+		_SysType.PieceType.FOUNDATION:
 			shape.shape = BoxShape3D.new()
 			shape.shape.size = Vector3(1.0, 0.3, 1.0)
-		BuildingSystem.PieceType.PILLAR:
+		_SysType.PieceType.PILLAR:
 			shape.shape = CylinderShape3D.new()
 			shape.shape.radius = 0.15
 			shape.shape.height = 1.0
-		BuildingSystem.PieceType.ROOF:
+		_SysType.PieceType.ROOF:
 			shape.shape = BoxShape3D.new()
 			shape.shape.size = Vector3(1.0, 0.5, 1.0)
 		_:
@@ -67,23 +71,23 @@ static func _create_mesh_instance(piece_type: int, tier: int) -> MeshInstance3D:
 	var mesh_instance := MeshInstance3D.new()
 	
 	match piece_type:
-		BuildingSystem.PieceType.WALL, BuildingSystem.PieceType.DOOR:
+		_SysType.PieceType.WALL, _SysType.PieceType.DOOR:
 			mesh_instance.mesh = BoxMesh.new()
 			mesh_instance.mesh.size = Vector3(1.0, 1.0, 0.15)
-		BuildingSystem.PieceType.FLOOR:
+		_SysType.PieceType.FLOOR:
 			mesh_instance.mesh = BoxMesh.new()
 			mesh_instance.mesh.size = Vector3(1.0, 0.15, 1.0)
-		BuildingSystem.PieceType.ROOF:
+		_SysType.PieceType.ROOF:
 			var prism = PrismMesh.new()
 			prism.size = Vector3(1.0, 0.5, 1.0)
 			mesh_instance.mesh = prism
-		BuildingSystem.PieceType.PILLAR:
+		_SysType.PieceType.PILLAR:
 			var cyl = CylinderMesh.new()
 			cyl.top_radius = 0.1
 			cyl.bottom_radius = 0.15
 			cyl.height = 1.0
 			mesh_instance.mesh = cyl
-		BuildingSystem.PieceType.FOUNDATION:
+		_SysType.PieceType.FOUNDATION:
 			mesh_instance.mesh = BoxMesh.new()
 			mesh_instance.mesh.size = Vector3(1.0, 0.3, 1.0)
 		_:
@@ -98,10 +102,10 @@ static func _create_mesh_instance(piece_type: int, tier: int) -> MeshInstance3D:
 	return mesh_instance
 
 static func _make_material(piece_type: int, tier: int) -> StandardMaterial3D:
-	var tier_data = BuildingSystem.get_tier_data(tier)
+	var tier_data = _SysType.get_tier_data(tier)
 	var mat = StandardMaterial3D.new()
-	mat.albedo_color = tier_data.color
-	mat.albedo_texture = BuildingTextures.generate(piece_type)
+	mat.albedo_color = tier_data.get("color", Color.WHITE)
+	mat.albedo_texture = _TexType.generate(piece_type)
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	mat.uv1_scale = Vector3(1.0, 1.0, 1.0)
 	mat.metallic = float(tier) / 8.0 * 0.5

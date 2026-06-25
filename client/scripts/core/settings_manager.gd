@@ -6,7 +6,7 @@ extends Node
 ##   2. 运行时通过 signal 通知各系统
 ##   3. 关闭时自动保存
 
-class_name SettingsManager
+# class_name SettingsManager — 已通过 autoload 注册
 
 signal settings_changed(key: String, value)
 
@@ -66,11 +66,13 @@ func _apply_setting(key: String, value) -> void:
 			AudioServer.set_bus_volume_db(AudioServer.get_bus_index("Master"), 
 				linear_to_db(value / 100.0))
 		"sfx_volume":
-			AudioServer.set_bus_volume_db(AudioServer.get_bus_index("SFX"), 
-				linear_to_db(value / 100.0))
+			var sfx_bus = AudioServer.get_bus_index("SFX")
+			if sfx_bus >= 0:
+				AudioServer.set_bus_volume_db(sfx_bus, linear_to_db(value / 100.0))
 		"music_volume":
-			AudioServer.set_bus_volume_db(AudioServer.get_bus_index("Music"), 
-				linear_to_db(value / 100.0))
+			var music_bus = AudioServer.get_bus_index("Music")
+			if music_bus >= 0:
+				AudioServer.set_bus_volume_db(music_bus, linear_to_db(value / 100.0))
 		"fullscreen":
 			if value:
 				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)

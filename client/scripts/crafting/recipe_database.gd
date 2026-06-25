@@ -112,6 +112,43 @@ const RECIPES: Dictionary = {
 		"desc": "插在墙上或手持照明",
 	},
 	
+	# -- 草甲套（Tier 0，工作台） --
+	"straw_hat": {
+		"name": "草帽", "category": "armor", "station": "workbench",
+		"materials": {"thatch": 3, "vine": 1},
+		"result": "straw_hat", "result_count": 1,
+		"craft_time": 2.0, "realm_required": 0, "tier": 0,
+		"desc": "茅草编的帽子，遮阳尚可",
+	},
+	"grass_armor": {
+		"name": "草甲", "category": "armor", "station": "workbench",
+		"materials": {"thatch": 5, "vine": 2},
+		"result": "grass_armor", "result_count": 1,
+		"craft_time": 3.0, "realm_required": 0, "tier": 0,
+		"desc": "藤蔓编的简易胸甲",
+	},
+	"grass_skirt": {
+		"name": "草裙", "category": "armor", "station": "workbench",
+		"materials": {"thatch": 3, "vine": 1},
+		"result": "grass_skirt", "result_count": 1,
+		"craft_time": 2.0, "realm_required": 0, "tier": 0,
+		"desc": "遮羞防晒，走起来沙沙响",
+	},
+	"straw_sandals": {
+		"name": "草鞋", "category": "armor", "station": "workbench",
+		"materials": {"thatch": 2, "vine": 1},
+		"result": "straw_sandals", "result_count": 1,
+		"craft_time": 1.5, "realm_required": 0, "tier": 0,
+		"desc": "走山路不硌脚",
+	},
+	"wood_ring": {
+		"name": "木戒", "category": "accessory", "station": "workbench",
+		"materials": {"wood": 3, "vine": 1},
+		"result": "wood_ring", "result_count": 1,
+		"craft_time": 2.0, "realm_required": 0, "tier": 0,
+		"desc": "粗糙木戒指，+5 灵气上限",
+	},
+	
 	# ========== Tier 1：练气期 ==========
 	"iron_axe": {
 		"name": "铁斧", "category": "tool", "station": "workbench",
@@ -333,19 +370,19 @@ const RECIPES: Dictionary = {
 		"craft_time": 6.0, "realm_required": 1, "tier": 1,
 		"desc": "基础铁质头盔",
 	},
-	"iron_chestplate": {
-		"name": "铁胸甲", "category": "armor", "station": "anvil",
+	"iron_armor": {
+		"name": "铁甲", "category": "armor", "station": "anvil",
 		"materials": {"iron_ingot": 8},
-		"result": "iron_chestplate", "result_count": 1,
+		"result": "iron_armor", "result_count": 1,
 		"craft_time": 8.0, "realm_required": 1, "tier": 1,
-		"desc": "基础铁质胸甲",
+		"desc": "铁制板甲，结实可靠",
 	},
-	"iron_legs": {
+	"iron_greaves": {
 		"name": "铁护腿", "category": "armor", "station": "anvil",
 		"materials": {"iron_ingot": 6},
-		"result": "iron_legs", "result_count": 1,
+		"result": "iron_greaves", "result_count": 1,
 		"craft_time": 7.0, "realm_required": 1, "tier": 1,
-		"desc": "基础铁质护腿",
+		"desc": "铁制腿甲，大幅度提升下盘防御",
 	},
 	"spirit_helmet": {
 		"name": "灵铁头盔", "category": "armor", "station": "anvil",
@@ -376,6 +413,43 @@ const RECIPES: Dictionary = {
 		"result": "cloth", "result_count": 2,
 		"craft_time": 3.0, "realm_required": 0, "tier": 0,
 		"desc": "基础布料，制作防具的原材料",
+	},
+	
+	# -- 皮甲套（Tier 1，织布机） --
+	"leather_helmet": {
+		"name": "皮帽", "category": "armor", "station": "loom",
+		"materials": {"cloth": 2, "leather": 2},
+		"result": "leather_helmet", "result_count": 1,
+		"craft_time": 4.0, "realm_required": 1, "tier": 1,
+		"desc": "鞣制皮革帽，轻便耐用",
+	},
+	"leather_armor": {
+		"name": "皮甲", "category": "armor", "station": "loom",
+		"materials": {"cloth": 3, "leather": 3},
+		"result": "leather_armor", "result_count": 1,
+		"craft_time": 5.0, "realm_required": 1, "tier": 1,
+		"desc": "厚实皮革胸甲，能挡野兽爪牙",
+	},
+	"leather_pants": {
+		"name": "皮裤", "category": "armor", "station": "loom",
+		"materials": {"cloth": 2, "leather": 2},
+		"result": "leather_pants", "result_count": 1,
+		"craft_time": 4.0, "realm_required": 1, "tier": 1,
+		"desc": "护腿，行动灵活不失防护",
+	},
+	"leather_boots": {
+		"name": "皮靴", "category": "armor", "station": "loom",
+		"materials": {"cloth": 2, "leather": 1},
+		"result": "leather_boots", "result_count": 1,
+		"craft_time": 3.5, "realm_required": 1, "tier": 1,
+		"desc": "结实的皮靴，越野跋涉不在话下",
+	},
+	"leather_belt": {
+		"name": "皮带", "category": "accessory", "station": "loom",
+		"materials": {"leather": 2, "cloth": 1},
+		"result": "leather_belt", "result_count": 1,
+		"craft_time": 3.0, "realm_required": 1, "tier": 1,
+		"desc": "宽皮腰带，+10 血量上限",
 	},
 	"cloth_robe": {
 		"name": "布衣", "category": "armor", "station": "loom",
@@ -471,6 +545,465 @@ const RECIPES: Dictionary = {
 		"result": "glass", "result_count": 2,
 		"craft_time": 3.0, "realm_required": 1, "tier": 1,
 		"desc": "烧制玻璃，用于窗户",
+	},
+	
+	# ==========================================================
+	# 🆕 Tier 0 凡人 · 新工具/武器/防具
+	# ==========================================================
+	"stone_shovel": {
+		"name": "石锹", "category": "tool", "station": "workbench",
+		"materials": {"wood": 2, "stone": 2},
+		"result": "stone_shovel", "result_count": 1,
+		"craft_time": 2.5, "realm_required": 0, "tier": 0,
+		"desc": "挖土铲沙，手工作坊出品",
+	},
+	"stone_scythe": {
+		"name": "石镰", "category": "tool", "station": "workbench",
+		"materials": {"wood": 2, "stone": 2, "vine": 1},
+		"result": "stone_scythe", "result_count": 1,
+		"craft_time": 2.5, "realm_required": 0, "tier": 0,
+		"desc": "采集草药藤蔓",
+	},
+	"stone_dagger": {
+		"name": "石匕首", "category": "weapon", "station": "workbench",
+		"materials": {"stone": 3, "wood": 1, "vine": 1},
+		"result": "stone_dagger", "result_count": 1,
+		"craft_time": 2.0, "realm_required": 0, "tier": 0,
+		"desc": "磨尖的燧石匕首",
+	},
+	"wooden_staff": {
+		"name": "木杖", "category": "weapon", "station": "workbench",
+		"materials": {"wood": 6, "vine": 2},
+		"result": "wooden_staff", "result_count": 1,
+		"craft_time": 3.0, "realm_required": 0, "tier": 0,
+		"desc": "粗糙的木制法杖",
+	},
+	"fishing_rod_wooden": {
+		"name": "木钓竿", "category": "tool", "station": "workbench",
+		"materials": {"wood": 4, "vine": 3},
+		"result": "fishing_rod_wooden", "result_count": 1,
+		"craft_time": 3.0, "realm_required": 0, "tier": 0,
+		"desc": "普通木钓竿，能在水域钓鱼",
+	},
+	"cloth_helmet": {
+		"name": "布帽", "category": "armor", "station": "loom",
+		"materials": {"cloth": 2},
+		"result": "cloth_helmet", "result_count": 1,
+		"craft_time": 2.0, "realm_required": 0, "tier": 0,
+		"desc": "简陋布帽",
+	},
+	"cloth_legs": {
+		"name": "布裤", "category": "armor", "station": "loom",
+		"materials": {"cloth": 3},
+		"result": "cloth_legs", "result_count": 1,
+		"craft_time": 2.5, "realm_required": 0, "tier": 0,
+		"desc": "粗布裤子",
+	},
+	"cloth_boots": {
+		"name": "布鞋", "category": "armor", "station": "loom",
+		"materials": {"cloth": 2},
+		"result": "cloth_boots", "result_count": 1,
+		"craft_time": 2.0, "realm_required": 0, "tier": 0,
+		"desc": "普通布鞋",
+	},
+	
+	# ==========================================================
+	# 🆕 Tier 1 练气 · 铁器/铜饰品
+	# ==========================================================
+	"iron_shovel": {
+		"name": "铁锹", "category": "tool", "station": "anvil",
+		"materials": {"wood": 2, "iron_ingot": 3},
+		"result": "iron_shovel", "result_count": 1,
+		"craft_time": 5.0, "realm_required": 1, "tier": 1,
+		"desc": "挖土效率2倍",
+	},
+	"iron_hammer": {
+		"name": "铁锤", "category": "tool", "station": "anvil",
+		"materials": {"wood": 3, "iron_ingot": 4},
+		"result": "iron_hammer", "result_count": 1,
+		"craft_time": 6.0, "realm_required": 1, "tier": 1,
+		"desc": "拆解建筑效率更高",
+	},
+	"iron_scythe": {
+		"name": "铁镰", "category": "tool", "station": "anvil",
+		"materials": {"wood": 2, "iron_ingot": 3},
+		"result": "iron_scythe", "result_count": 1,
+		"craft_time": 5.0, "realm_required": 1, "tier": 1,
+		"desc": "采集效率2倍",
+	},
+	"iron_bow": {
+		"name": "铁弓", "category": "weapon", "station": "anvil",
+		"materials": {"wood": 3, "iron_ingot": 4, "vine": 2},
+		"result": "iron_bow", "result_count": 1,
+		"craft_time": 7.0, "realm_required": 1, "tier": 1,
+		"desc": "铁骨弓，远程利器",
+	},
+	"iron_spear": {
+		"name": "铁枪", "category": "weapon", "station": "anvil",
+		"materials": {"wood": 3, "iron_ingot": 6},
+		"result": "iron_spear", "result_count": 1,
+		"craft_time": 7.0, "realm_required": 1, "tier": 1,
+		"desc": "百炼铁枪",
+	},
+	"iron_dagger": {
+		"name": "铁匕首", "category": "weapon", "station": "anvil",
+		"materials": {"iron_ingot": 3, "wood": 1},
+		"result": "iron_dagger", "result_count": 1,
+		"craft_time": 4.0, "realm_required": 1, "tier": 1,
+		"desc": "轻便铁匕首",
+	},
+	"iron_boots": {
+		"name": "铁靴", "category": "armor", "station": "anvil",
+		"materials": {"iron_ingot": 4, "leather": 2},
+		"result": "iron_boots", "result_count": 1,
+		"craft_time": 5.0, "realm_required": 1, "tier": 1,
+		"desc": "铁靴厚重",
+	},
+	"copper_ring": {
+		"name": "铜戒指", "category": "accessory", "station": "anvil",
+		"materials": {"copper_ingot": 3, "spirit_stone": 1},
+		"result": "copper_ring", "result_count": 1,
+		"craft_time": 4.0, "realm_required": 1, "tier": 1,
+		"desc": "简陋铜戒",
+	},
+	"copper_amulet": {
+		"name": "铜护符", "category": "accessory", "station": "anvil",
+		"materials": {"copper_ingot": 4, "spirit_stone": 2, "vine": 2},
+		"result": "copper_amulet", "result_count": 1,
+		"craft_time": 5.0, "realm_required": 1, "tier": 1,
+		"desc": "铜制护符",
+	},
+	# -- 熔炉/织布机补充 --
+	"leather": {
+		"name": "皮革", "category": "material", "station": "loom",
+		"materials": {"vine": 3, "herb_common": 1},
+		"result": "leather", "result_count": 1,
+		"craft_time": 3.0, "realm_required": 0, "tier": 0,
+		"desc": "鞣制过的兽皮",
+	},
+	"silk": {
+		"name": "灵丝", "category": "material", "station": "loom",
+		"materials": {"vine": 4, "spirit_stone": 1, "herb_qi": 2},
+		"result": "silk", "result_count": 2,
+		"craft_time": 5.0, "realm_required": 1, "tier": 1,
+		"desc": "灵蚕吐出的丝线",
+	},
+	
+	# ==========================================================
+	# 🆕 Tier 2 筑基 · 灵铁工具/武器/防具/饰品
+	# ==========================================================
+	"spirit_shovel": {
+		"name": "灵铁锹", "category": "tool", "station": "anvil",
+		"materials": {"spirit_iron": 3, "spirit_wood": 2},
+		"result": "spirit_shovel", "result_count": 1,
+		"craft_time": 8.0, "realm_required": 2, "tier": 2,
+		"desc": "灵铁锻造，挖土效率3倍",
+	},
+	"spirit_scythe": {
+		"name": "灵铁镰", "category": "tool", "station": "anvil",
+		"materials": {"spirit_iron": 3, "spirit_wood": 2},
+		"result": "spirit_scythe", "result_count": 1,
+		"craft_time": 8.0, "realm_required": 2, "tier": 2,
+		"desc": "采集效率3倍",
+	},
+	"spirit_hammer": {
+		"name": "灵铁锤", "category": "tool", "station": "anvil",
+		"materials": {"spirit_iron": 5, "spirit_wood": 2},
+		"result": "spirit_hammer", "result_count": 1,
+		"craft_time": 10.0, "realm_required": 2, "tier": 2,
+		"desc": "灵铁重锤",
+	},
+	"fishing_rod_spirit": {
+		"name": "灵丝钓竿", "category": "tool", "station": "workbench",
+		"materials": {"silk": 4, "spirit_wood": 3, "spirit_iron": 2},
+		"result": "fishing_rod_spirit", "result_count": 1,
+		"craft_time": 8.0, "realm_required": 2, "tier": 2,
+		"desc": "灵丝钓竿",
+	},
+	"spirit_bow": {
+		"name": "灵铁弓", "category": "weapon", "station": "anvil",
+		"materials": {"spirit_iron": 5, "silk": 2},
+		"result": "spirit_bow", "result_count": 1,
+		"craft_time": 12.0, "realm_required": 2, "tier": 2,
+		"desc": "灵铁弓弦",
+	},
+	"spirit_staff": {
+		"name": "灵铁杖", "category": "weapon", "station": "anvil",
+		"materials": {"spirit_iron": 4, "spirit_wood": 4, "spirit_stone": 2},
+		"result": "spirit_staff", "result_count": 1,
+		"craft_time": 12.0, "realm_required": 2, "tier": 2,
+		"desc": "铭刻灵纹的法杖",
+	},
+	"spirit_spear": {
+		"name": "灵铁枪", "category": "weapon", "station": "anvil",
+		"materials": {"spirit_iron": 6, "spirit_wood": 2},
+		"result": "spirit_spear", "result_count": 1,
+		"craft_time": 12.0, "realm_required": 2, "tier": 2,
+		"desc": "灵铁长枪",
+	},
+	"spirit_legs": {
+		"name": "灵铁护腿", "category": "armor", "station": "anvil",
+		"materials": {"spirit_iron": 5, "spirit_stone": 2},
+		"result": "spirit_legs", "result_count": 1,
+		"craft_time": 10.0, "realm_required": 2, "tier": 2,
+		"desc": "灵铁护腿",
+	},
+	"spirit_boots": {
+		"name": "灵铁靴", "category": "armor", "station": "anvil",
+		"materials": {"spirit_iron": 4, "leather": 2},
+		"result": "spirit_boots", "result_count": 1,
+		"craft_time": 8.0, "realm_required": 2, "tier": 2,
+		"desc": "灵铁靴",
+	},
+	"spirit_ring": {
+		"name": "灵铁戒", "category": "accessory", "station": "anvil",
+		"materials": {"spirit_iron": 2, "spirit_stone": 3},
+		"result": "spirit_ring", "result_count": 1,
+		"craft_time": 8.0, "realm_required": 2, "tier": 2,
+		"desc": "灵铁戒指",
+	},
+	"spirit_amulet": {
+		"name": "灵玉坠", "category": "accessory", "station": "anvil",
+		"materials": {"spirit_jade": 1, "spirit_stone": 3, "silk": 2},
+		"result": "spirit_amulet", "result_count": 1,
+		"craft_time": 10.0, "realm_required": 2, "tier": 2,
+		"desc": "灵玉吊坠",
+	},
+	"spirit_bracelet": {
+		"name": "灵纹镯", "category": "accessory", "station": "anvil",
+		"materials": {"spirit_iron": 3, "spirit_stone": 2},
+		"result": "spirit_bracelet", "result_count": 1,
+		"craft_time": 8.0, "realm_required": 2, "tier": 2,
+		"desc": "刻有防御阵法的灵纹镯",
+	},
+	"spirit_belt": {
+		"name": "灵纹腰带", "category": "accessory", "station": "loom",
+		"materials": {"silk": 4, "spirit_stone": 2, "leather": 2},
+		"result": "spirit_belt", "result_count": 1,
+		"craft_time": 8.0, "realm_required": 2, "tier": 2,
+		"desc": "刻有聚灵纹的腰带",
+	},
+	"fire_essence": {
+		"name": "火灵精", "category": "material", "station": "spirit_furnace",
+		"materials": {"spirit_stone": 3, "copper_ingot": 2, "herb_qi": 2},
+		"result": "fire_essence", "result_count": 1,
+		"craft_time": 8.0, "realm_required": 2, "tier": 2,
+		"desc": "火灵之力精华",
+	},
+	"water_essence": {
+		"name": "水灵精", "category": "material", "station": "spirit_furnace",
+		"materials": {"spirit_stone": 3, "copper_ingot": 2, "herb_spirit": 2},
+		"result": "water_essence", "result_count": 1,
+		"craft_time": 8.0, "realm_required": 2, "tier": 2,
+		"desc": "水灵之力精华",
+	},
+	"earth_essence": {
+		"name": "土灵精", "category": "material", "station": "spirit_furnace",
+		"materials": {"spirit_stone": 3, "iron_ingot": 2, "dirt": 4},
+		"result": "earth_essence", "result_count": 1,
+		"craft_time": 8.0, "realm_required": 2, "tier": 2,
+		"desc": "土灵之力精华",
+	},
+	
+	# ==========================================================
+	# 🆕 Tier 3 金丹 · 玉灵装备/饰品
+	# ==========================================================
+	"jade_pickaxe": {
+		"name": "玉灵镐", "category": "tool", "station": "spirit_furnace",
+		"materials": {"spirit_jade": 3, "spirit_iron": 3, "spirit_wood": 2},
+		"result": "jade_pickaxe", "result_count": 1,
+		"craft_time": 18.0, "realm_required": 3, "tier": 3,
+		"desc": "玉灵镐头，挖矿效率4倍",
+	},
+	"jade_axe": {
+		"name": "玉灵斧", "category": "tool", "station": "spirit_furnace",
+		"materials": {"spirit_jade": 3, "spirit_iron": 3, "spirit_wood": 3},
+		"result": "jade_axe", "result_count": 1,
+		"craft_time": 18.0, "realm_required": 3, "tier": 3,
+		"desc": "玉灵斧刃，砍树效率4倍",
+	},
+	"jade_staff": {
+		"name": "玉灵杖", "category": "weapon", "station": "spirit_furnace",
+		"materials": {"spirit_jade": 6, "gold_ingot": 3, "spirit_stone": 5},
+		"result": "jade_staff", "result_count": 1,
+		"craft_time": 22.0, "realm_required": 3, "tier": 3,
+		"desc": "玉灵法杖",
+	},
+	"jade_bow": {
+		"name": "玉灵弓", "category": "weapon", "station": "spirit_furnace",
+		"materials": {"spirit_jade": 5, "silk": 3, "spirit_iron": 3},
+		"result": "jade_bow", "result_count": 1,
+		"craft_time": 20.0, "realm_required": 3, "tier": 3,
+		"desc": "玉灵弓",
+	},
+	"jade_dagger": {
+		"name": "玉灵匕", "category": "weapon", "station": "spirit_furnace",
+		"materials": {"spirit_jade": 4, "gold_ingot": 2},
+		"result": "jade_dagger", "result_count": 1,
+		"craft_time": 15.0, "realm_required": 3, "tier": 3,
+		"desc": "玉灵匕首",
+	},
+	"jade_helmet": {
+		"name": "玉灵冠", "category": "armor", "station": "spirit_furnace",
+		"materials": {"spirit_jade": 4, "gold_ingot": 2, "spirit_stone": 3},
+		"result": "jade_helmet", "result_count": 1,
+		"craft_time": 18.0, "realm_required": 3, "tier": 3,
+		"desc": "玉灵冠冕",
+	},
+	"jade_chestplate": {
+		"name": "玉灵甲", "category": "armor", "station": "spirit_furnace",
+		"materials": {"spirit_jade": 8, "gold_ingot": 4, "spirit_stone": 5},
+		"result": "jade_chestplate", "result_count": 1,
+		"craft_time": 25.0, "realm_required": 3, "tier": 3,
+		"desc": "玉灵宝甲",
+	},
+	"jade_legs": {
+		"name": "玉灵护膝", "category": "armor", "station": "spirit_furnace",
+		"materials": {"spirit_jade": 4, "gold_ingot": 2, "silk": 2},
+		"result": "jade_legs", "result_count": 1,
+		"craft_time": 18.0, "realm_required": 3, "tier": 3,
+		"desc": "玉灵护膝",
+	},
+	"jade_boots": {
+		"name": "玉灵靴", "category": "armor", "station": "spirit_furnace",
+		"materials": {"spirit_jade": 3, "gold_ingot": 2, "leather": 2},
+		"result": "jade_boots", "result_count": 1,
+		"craft_time": 15.0, "realm_required": 3, "tier": 3,
+		"desc": "玉灵靴",
+	},
+	"jade_ring": {
+		"name": "玉灵戒", "category": "accessory", "station": "spirit_furnace",
+		"materials": {"spirit_jade": 2, "gold_ingot": 2, "spirit_stone": 3},
+		"result": "jade_ring", "result_count": 1,
+		"craft_time": 15.0, "realm_required": 3, "tier": 3,
+		"desc": "玉灵戒指",
+	},
+	"jade_amulet": {
+		"name": "玉灵坠", "category": "accessory", "station": "spirit_furnace",
+		"materials": {"spirit_jade": 3, "gold_ingot": 2, "silk": 2},
+		"result": "jade_amulet", "result_count": 1,
+		"craft_time": 18.0, "realm_required": 3, "tier": 3,
+		"desc": "玉灵吊坠",
+	},
+	"jade_bracelet": {
+		"name": "玉灵镯", "category": "accessory", "station": "spirit_furnace",
+		"materials": {"spirit_jade": 2, "gold_ingot": 3},
+		"result": "jade_bracelet", "result_count": 1,
+		"craft_time": 15.0, "realm_required": 3, "tier": 3,
+		"desc": "玉灵手镯",
+	},
+	
+	# ==========================================================
+	# 🆕 Tier 4 元婴 · 玉晶武器/防具/饰品
+	# ==========================================================
+	"crystal_sword": {
+		"name": "玉晶剑", "category": "weapon", "station": "spirit_furnace",
+		"materials": {"spirit_crystal": 8, "spirit_jade": 5, "gold_ingot": 3},
+		"result": "crystal_sword", "result_count": 1,
+		"craft_time": 35.0, "realm_required": 4, "tier": 4,
+		"desc": "玉晶神剑",
+	},
+	"crystal_staff": {
+		"name": "玉晶杖", "category": "weapon", "station": "spirit_furnace",
+		"materials": {"spirit_crystal": 8, "spirit_jade": 5, "spirit_stone": 10},
+		"result": "crystal_staff", "result_count": 1,
+		"craft_time": 35.0, "realm_required": 4, "tier": 4,
+		"desc": "玉晶法杖",
+	},
+	"crystal_helmet": {
+		"name": "玉晶冠", "category": "armor", "station": "spirit_furnace",
+		"materials": {"spirit_crystal": 5, "spirit_jade": 3, "gold_ingot": 2},
+		"result": "crystal_helmet", "result_count": 1,
+		"craft_time": 25.0, "realm_required": 4, "tier": 4,
+		"desc": "玉晶冠冕",
+	},
+	"crystal_chestplate": {
+		"name": "玉晶甲", "category": "armor", "station": "spirit_furnace",
+		"materials": {"spirit_crystal": 10, "spirit_jade": 5, "gold_ingot": 4, "spirit_stone": 8},
+		"result": "crystal_chestplate", "result_count": 1,
+		"craft_time": 40.0, "realm_required": 4, "tier": 4,
+		"desc": "玉晶宝甲",
+	},
+	"crystal_legs": {
+		"name": "玉晶护膝", "category": "armor", "station": "spirit_furnace",
+		"materials": {"spirit_crystal": 5, "spirit_jade": 3, "silk": 3},
+		"result": "crystal_legs", "result_count": 1,
+		"craft_time": 25.0, "realm_required": 4, "tier": 4,
+		"desc": "玉晶护膝",
+	},
+	"crystal_boots": {
+		"name": "玉晶靴", "category": "armor", "station": "spirit_furnace",
+		"materials": {"spirit_crystal": 4, "spirit_jade": 2, "leather": 2},
+		"result": "crystal_boots", "result_count": 1,
+		"craft_time": 20.0, "realm_required": 4, "tier": 4,
+		"desc": "玉晶靴",
+	},
+	"crystal_ring": {
+		"name": "玉晶戒", "category": "accessory", "station": "spirit_furnace",
+		"materials": {"spirit_crystal": 3, "spirit_jade": 3, "gold_ingot": 2},
+		"result": "crystal_ring", "result_count": 1,
+		"craft_time": 25.0, "realm_required": 4, "tier": 4,
+		"desc": "玉晶戒指",
+	},
+	"crystal_amulet": {
+		"name": "玉晶坠", "category": "accessory", "station": "spirit_furnace",
+		"materials": {"spirit_crystal": 4, "spirit_jade": 3, "silk": 3},
+		"result": "crystal_amulet", "result_count": 1,
+		"craft_time": 28.0, "realm_required": 4, "tier": 4,
+		"desc": "玉晶吊坠",
+	},
+	
+	# ==========================================================
+	# 🆕 Tier 6 化神 · 后天灵宝/星辰套
+	# ==========================================================
+	"artifact_staff": {
+		"name": "后天灵宝·混元", "category": "weapon", "station": "spirit_furnace",
+		"materials": {"celestial_iron": 8, "phoenix_feather": 3, "spirit_crystal": 10},
+		"result": "artifact_staff", "result_count": 1,
+		"craft_time": 150.0, "realm_required": 6, "tier": 6,
+		"desc": "后天灵宝法杖",
+	},
+	"artifact_bow": {
+		"name": "后天灵宝·落日", "category": "weapon", "station": "spirit_furnace",
+		"materials": {"celestial_iron": 8, "dragon_scale": 3, "silk": 5},
+		"result": "artifact_bow", "result_count": 1,
+		"craft_time": 140.0, "realm_required": 6, "tier": 6,
+		"desc": "落日神弓",
+	},
+	"celestial_helmet": {
+		"name": "星辰冠", "category": "armor", "station": "spirit_furnace",
+		"materials": {"celestial_iron": 6, "celestial_stone": 4, "spirit_crystal": 5},
+		"result": "celestial_helmet", "result_count": 1,
+		"craft_time": 80.0, "realm_required": 6, "tier": 6,
+		"desc": "星辰冠冕",
+	},
+	"celestial_chestplate": {
+		"name": "星辰甲", "category": "armor", "station": "spirit_furnace",
+		"materials": {"celestial_iron": 10, "celestial_stone": 6, "dragon_scale": 3, "spirit_crystal": 8},
+		"result": "celestial_chestplate", "result_count": 1,
+		"craft_time": 120.0, "realm_required": 6, "tier": 6,
+		"desc": "星辰战甲",
+	},
+	"celestial_legs": {
+		"name": "星辰护膝", "category": "armor", "station": "spirit_furnace",
+		"materials": {"celestial_iron": 5, "celestial_stone": 3, "silk": 5},
+		"result": "celestial_legs", "result_count": 1,
+		"craft_time": 70.0, "realm_required": 6, "tier": 6,
+		"desc": "星辰护膝",
+	},
+	"celestial_boots": {
+		"name": "星辰靴", "category": "armor", "station": "spirit_furnace",
+		"materials": {"celestial_iron": 4, "celestial_stone": 2, "leather": 3},
+		"result": "celestial_boots", "result_count": 1,
+		"craft_time": 60.0, "realm_required": 6, "tier": 6,
+		"desc": "星辰靴",
+	},
+	"celestial_ring": {
+		"name": "星辰戒", "category": "accessory", "station": "spirit_furnace",
+		"materials": {"celestial_iron": 4, "celestial_stone": 3, "gold_ingot": 5},
+		"result": "celestial_ring", "result_count": 1,
+		"craft_time": 80.0, "realm_required": 6, "tier": 6,
+		"desc": "星辰戒指",
 	},
 }
 

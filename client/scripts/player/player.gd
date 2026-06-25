@@ -25,4 +25,8 @@ func heal(amount: int) -> void:
 
 func _get_pc():
 	var gm = get_node("/root/GameManager") if has_node("/root/GameManager") else null
-	return gm.player if gm and gm.has_method("get_player") else get_tree().get_first_node_in_group("player_controller")
+	# 先试 GameManager.player 属性
+	if gm and gm.player:
+		return gm.player.get_node_or_null("PlayerController") if gm.player.has_node("PlayerController") else null
+	# 回退：场景树搜索（组注册可能在 _ready 之后）
+	return get_tree().get_first_node_in_group("player_controller")

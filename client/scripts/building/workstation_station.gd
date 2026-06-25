@@ -15,6 +15,7 @@ enum StationType {
 	LOOM,           # 织布机 — 布料/防具
 	SPIRIT_FURNACE, # 灵炉 — 高级冶炼
 	RUNE_TABLE,     # 符文台 — 附魔/符文
+	SOUL_FORGE,     # 魂器锻造台 — 锻造魂器
 }
 
 const STATION_NAMES: Dictionary = {
@@ -25,6 +26,7 @@ const STATION_NAMES: Dictionary = {
 	StationType.LOOM: "loom",
 	StationType.SPIRIT_FURNACE: "spirit_furnace",
 	StationType.RUNE_TABLE: "rune_table",
+	StationType.SOUL_FORGE: "soul_forge",
 }
 
 const STATION_DISPLAY_NAMES: Dictionary = {
@@ -35,6 +37,7 @@ const STATION_DISPLAY_NAMES: Dictionary = {
 	StationType.LOOM: "织布机",
 	StationType.SPIRIT_FURNACE: "灵炉",
 	StationType.RUNE_TABLE: "符文台",
+	StationType.SOUL_FORGE: "魂器锻造台",
 }
 
 ## 通过配方名获取工作站类型（用于放置时判断）
@@ -47,6 +50,7 @@ static func get_station_type_from_recipe(recipe_result: String) -> int:
 		"loom": return StationType.LOOM
 		"spirit_furnace": return StationType.SPIRIT_FURNACE
 		"rune_table": return StationType.RUNE_TABLE
+		"soul_forge": return StationType.SOUL_FORGE
 	return StationType.WORKBENCH
 
 # ==================== 导出属性 ====================
@@ -84,7 +88,7 @@ func _ready() -> void:
 	# 获取合成系统引用
 	_crafting_system = get_node("/root/GameManager/CraftingSystem") if has_node("/root/GameManager/CraftingSystem") else null
 	if not _crafting_system:
-		_crafting_system = get_node("/root/CraftingSystem") if has_node("/root/CraftingSystem") else null
+		_crafting_system = get_node("/root/GameManager/CraftingSystem") if has_node("/root/GameManager/CraftingSystem") else null
 
 func _create_visual() -> void:
 	"""根据工作站类型创建不同视觉"""
@@ -103,6 +107,8 @@ func _create_visual() -> void:
 			_create_loom_visual()
 		StationType.RUNE_TABLE:
 			_create_rune_visual()
+		StationType.SOUL_FORGE:
+			_create_soul_forge_visual()
 		_:
 			# 默认：盒子
 			var box = MeshInstance3D.new()
@@ -343,6 +349,62 @@ func _create_rune_visual() -> void:
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	add_child(label)
 
+func _create_soul_forge_visual() -> void:
+	"""魂器锻造台 — 灵韵环绕的锻台"""
+	# 底座
+	var base = MeshInstance3D.new()
+	base.mesh = BoxMesh.new()
+	base.mesh.size = Vector3(1.0, 0.3, 1.0)
+	var base_mat = StandardMaterial3D.new()
+	base_mat.albedo_color = Color(0.15, 0.1, 0.2)
+	base_mat.metallic = 0.6
+	base_mat.roughness = 0.4
+	base.mesh.material = base_mat
+	base.position.y = 0.15
+	add_child(base)
+	
+	# 台面 — 深色石板
+	var slab = MeshInstance3D.new()
+	slab.mesh = CylinderMesh.new()
+	slab.mesh.top_radius = 0.35
+	slab.mesh.bottom_radius = 0.4
+	slab.mesh.height = 0.08
+	var slab_mat = StandardMaterial3D.new()
+	slab_mat.albedo_color = Color(0.25, 0.2, 0.35)
+	slab_mat.metallic = 0.5
+	slab_mat.roughness = 0.3
+	slab.mesh.material = slab_mat
+	slab.position.y = 0.3
+	add_child(slab)
+	
+	# 灵韵光环 — 旋转能量环
+	var ring_mat = StandardMaterial3D.new()
+	ring_mat.albedo_color = Color(0.3, 0.6, 1.0, 0.6)
+	ring_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ring_mat.emission = Color(0.3, 0.6, 1.0)
+	ring_mat.emission_energy_multiplier = 2.0
+	
+	for i in range(3):
+		var ring = MeshInstance3D.new()
+		ring.mesh = TorusMesh.new()
+		ring.mesh.inner_radius = 0.25
+		ring.mesh.outer_radius = 0.32
+		ring.mesh.material = ring_mat
+		ring.position.y = 0.08 + i * 0.04
+		ring.rotation.x = deg_to_rad(10)
+		ring.rotation.y = deg_to_rad(i * 120)
+		add_child(ring)
+	
+	# 标签
+	var label = Label3D.new()
+	label.text = station_name
+	label.font_size = 12
+	label.pixel_size = 0.01
+	label.modulate = Color(0.3, 0.6, 1.0, 0.9)
+	label.position = Vector3(0, 0.8, 0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	add_child(label)
+
 # ==================== 触发检测 ====================
 
 func _on_body_entered(body: Node) -> void:
@@ -370,6 +432,10 @@ func interact() -> void:
 	
 	var ui = get_node("/root/UIManager") if has_node("/root/UIManager") else null
 	if ui:
-		# 打开合成面板并聚焦此工作站
-		ui.toggle_panel("crafting")
-		ui.focus_station(station_type)
+		if station_type == StationType.SOUL_FORGE:
+			# 🆕 魂器锻造台 → 直接打开魂器面板
+			ui.focus_station(station_type)
+		else:
+			# 打开合成面板并聚焦此工作站
+			ui.toggle_panel("crafting")
+			ui.focus_station(station_type)
